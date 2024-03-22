@@ -12,15 +12,14 @@ uint8_t cursor_col = 0;
 
 void framebuffer_set_cursor(uint8_t r, uint8_t c) {
     // TODO : Implement
-    uint8_t cursor_row = 0;
-    uint8_t cursor_col = 0;
+    uint8_t cursor_location = r *FRAMEBUFFER_WIDTH + c;
 
     // Atur byte untuk low cursor
-    port_byte_out(CURSOR_PORT_CMD, 0x0F);
-    port_byte_out(CURSOR_PORT_DATA, (uint8_t)(cursor_location & 0xFF));
+    out(CURSOR_PORT_CMD, 0x0F);
+    out(CURSOR_PORT_DATA, (uint8_t)(cursor_location & 0xFF));
     // Atur byte untuk high cursor
-    port_byte_out(CURSOR_PORT_CMD, 0x0E);
-    port_byte_out(CURSOR_PORT_DATA, (uint8_t)((cursor_location >> 8) & 0xFF));
+    out(CURSOR_PORT_CMD, 0x0E);
+    out(CURSOR_PORT_DATA, (uint8_t)((cursor_location >> 8) & 0xFF));
 }
 
 void framebuffer_write(uint8_t row, uint8_t col, char c, uint8_t fg, uint8_t bg) {
