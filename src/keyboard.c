@@ -39,11 +39,37 @@ void keyboard_isr(void){
   uint8_t scancode = in(KEYBOARD_DATA_PORT);
   // TODO : Implement scancode processing
   
+  //variabel lokal untuk melacak apakah tombol shift sedang ditekan atau tidak
+  static bool shift_pressed = false;
+
+  // memeriksa apakah tombol shift ditekan atau tidak
+  if (scancode == 0x2A || scancode == 0x36){ // scancode untuk shift ditekan
+    shift_pressed = true;
+  }
+  else if (scancode == 0xAA || scancode == 0x86){ // scancode saat shift dilepas
+    shift_pressed = false;
+  }
+
   // jika keyboard_input_on bernilai true
   if (keyboard_state.keyboard_input_on){
     // memproses scancode yang diterima ke karakter ascii
-    char ascii_char = keyboard_scancode_1_to_ascii_map[scancode];
-
+    char ascii_char;
+    if (scancode == 0x1C){ // enter
+      ascii_char = '\n';
+    }
+    else if (scancocde == 0x0E){ // backspace
+      ascii_char = '\b';
+    }
+    else if (scancode == 0x0F){ // tab
+      ascii_char = '\t';
+    }
+    else if (shift_pressed){ // jika shift ditekan
+      ascii_char = keyboard_scancode_1_to_ascii_map_shift[scancode];
+    }
+    else{ // jika shift tidak ditekan
+      ascii_char = keyboard_scancode_1_to_ascii_map[scancode];
+    }
+  
     // menyimpan karakter ascii ke dalam buffer keyboard
     keyboard_state.keyboard_buffer = ascii_char;
   } 
