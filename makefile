@@ -8,6 +8,7 @@ ISOGEN		  = genisoimage
 SOURCE_FOLDER = src
 OUTPUT_FOLDER = bin
 ISO_NAME      = OS2024
+DISK_NAME     = sample-image-copy
 
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
@@ -17,28 +18,31 @@ CFLAGS        = $(DEBUG_CFLAG) $(WARNING_CFLAG) $(STRIP_CFLAG) -m32 -c -I$(SOURC
 AFLAGS        = -f elf32 -g -F dwarf
 LFLAGS        = -T $(SOURCE_FOLDER)/linker.ld -melf_i386
 
+disk:
+	@qemu-img create -f raw $(OUTPUT_FOLDER)/$(DISK_NAME).bin 4M
 
 run: all
-	@qemu-system-i386 -s -S -cdrom $(OUTPUT_FOLDER)/$(ISO_NAME).iso
+	@qemu-system-i386 -s -S -drive file=$(OUTPUT_FOLDER)/$(DISK_NAME).bin,format=raw,if=ide,index=0,media=disk -cdrom $(OUTPUT_FOLDER)/$(ISO_NAME).iso
+
 all: build
 build: iso
 clean:
 	rm -rf *.o *.iso $(OUTPUT_FOLDER)/kernel
 
-# Compile files
-ASM = $(wildcard $(SOURCE_FOLDER)/*.s)
+# Compile file
+ASM_F = $(wildcard $(SOURCE_FOLDER)/*.s)
 SRC = $(wildcard $(SOURCE_FOLDER)/*.c)
-OBJS = $(patsubst $(SOURCE_FOLDER)/%.c, $(OUTPUT_FOLDER)/%.o, $(SRC)) $(patsubst $(SOURCE_FOLDER)/%.s, $(OUTPUT_FOLDER)/%.o, $(ASM))
+OBJS = $(patsubst $(SOURCE_FOLDER)/%.c, $(OUTPUT_FOLDER)/%.o, $(SRC)) $(patsubst $(SOURCE_FOLDER)/%.s, $(OUTPUT_FOLDER)/%.o, $(ASM_F))
 
 # Compile .s rule
 $(OUTPUT_FOLDER)/%.o: $(SOURCE_FOLDER)/%.s
 	@echo "Compiling $<"
-	@$(ASM) $(AFLAGS) $< -o $@`
+	@$(ASM) $(AFLAGS) $< -o $@
 
 # Compile .c rule
 $(OUTPUT_FOLDER)/%.o: $(SOURCE_FOLDER)/%.c
 	@echo "Compiling $<"
-	@$(CC) $(CFLAGS) $< -o $@ 
+	@$(CC) $(CFLAGS) $< -o $@
 
 kernel: $(OBJS)
 	@$(LIN) $(LFLAGS) bin/*.o -o $(OUTPUT_FOLDER)/kernel

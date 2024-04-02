@@ -5,6 +5,8 @@
 #include "header/text/framebuffer.h"
 #include "header/cpu/interrupt.h"
 // #include "header/driver/keyboard.h"
+#include "header/filesystem/disk.h"
+#include "header/filesystem/fat32.h"
 #include "header/background.h"
 
 void write_string(int row, int col, char* str, int fg, int bg) {
@@ -52,7 +54,35 @@ void kernel_setup(void) {
     framebuffer_set_cursor(0, 0);
     // __asm__("int $0x4");
 
-    while (true);
+    // Filesystem operations
+    // struct BlockBuffer b;
+    // for (int i = 0; i < 512; i++) b.buf[i] = i % 16;
+    // write_blocks(&b, 17, 1);
+    // while (true);
+
+    // Initialize filesystem FAT32
+    initialize_filesystem_fat32();
+
+    // Write folder
+    struct FAT32DriverRequest req = {
+        .name = "inifold",
+        .parent_cluster_number = ROOT_CLUSTER_NUMBER,
+        .buffer_size = 0
+    };
+    uint8_t write_dir = write(req);
+    write_dir++;
+
+    // Write file
+    char* bufstr = "akldsaldldkadjkldxklajdksadiwqldakldaskldasd";
+    struct FAT32DriverRequest req2 = {
+        .buf = bufstr,
+        .name = "inifile2",
+        .parent_cluster_number = 5,
+        .buffer_size = 0
+    };
+    uint8_t write_file = write(req2);
+    write_file++;
+
     // int col = 0;
     // keyboard_state_activate();
     // while (true){
