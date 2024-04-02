@@ -1,5 +1,5 @@
 #include "header/driver/keyboard.h"
-#include "header/driver/framebuffer.h"
+#include "header/text/framebuffer.h"
 #include "header/cpu/portio.h"
 #include "header/cpu/interrupt.h"
 #include "header/stdlib/string.h"
@@ -32,7 +32,7 @@ const char keyboard_scancode_1_to_ascii_map_shift[256] = {
     'Q',  'W', 'E', 'R', 'T', 'Y', 'U', 'I',  'O', 'P', '{',  '}', '\n',   0,  'A',  'S',
     'D',  'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',   0, '|',  'Z', 'X',  'C',  'V',
     'B',  'N', 'M', '<', '>', '?',   0, '*',    0, ' ',   0,    0,    0,   0,    0,    0,
-}
+};
 
 void keyboard_isr(void){
   // membaca scancode dari port data keyboard
@@ -57,7 +57,7 @@ void keyboard_isr(void){
     if (scancode == 0x1C){ // enter
       ascii_char = '\n';
     }
-    else if (scancocde == 0x0E){ // backspace
+    else if (scancode == 0x0E){ // backspace
       ascii_char = '\b';
     }
     else if (scancode == 0x0F){ // tab

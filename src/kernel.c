@@ -4,7 +4,7 @@
 #include "header/kernel-entrypoint.h"
 #include "header/text/framebuffer.h"
 #include "header/cpu/interrupt.h"
-#include "header/driver/keyboard.h"
+// #include "header/driver/keyboard.h"
 
 
 void kernel_setup(void) {
@@ -21,11 +21,11 @@ void kernel_setup(void) {
     framebuffer_set_cursor(3, 10);
     while (true) b += 1;
 
-    int col = 0;
-    keyboard_state_activate();
-    while (true){
-        char c;
-        get_keyboard_buffer(&c);
-        if (c) framebuffer_write(0, col++, c, 0xF, 0);
-    }
+    // int col = 0;
+    // keyboard_state_activate();
+    // while (true){
+    //     char c;
+    //     get_keyboard_buffer(&c);
+    //     if (c) framebuffer_write(0, col++, c, 0xF, 0);
+    // }
 }

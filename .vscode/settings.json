@@ -2,6 +2,7 @@
     "debug.onTaskErrors": "debugAnyway",
     "files.associations": {
         "portio.h": "c",
-        "keyboard.h": "c"
+        "keyboard.h": "c",
+        "interrupt.h": "c"
     },
 }
