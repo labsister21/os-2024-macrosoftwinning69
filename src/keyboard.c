@@ -74,7 +74,7 @@ void keyboard_isr(void){
     keyboard_state.keyboard_buffer = ascii_char;
   } 
   // melakukan pic_ack() ke IRQ1
-  pic_ack(1);
+  // pic_ack(1);
 }
 
 // mengaktifkan pembacaan input keyboard

@@ -14,10 +14,11 @@ void kernel_setup(void) {
     load_gdt(&_gdt_gdtr);
     activate_keyboard_interrupt();
     framebuffer_clear();
-    framebuffer_write(3, 8,  'H', 0, 0xF);
-    framebuffer_write(3, 9,  'a', 0, 0xF);
-    framebuffer_write(3, 10, 'i', 0, 0xF);
-    framebuffer_write(3, 11, '!', 0, 0xF);
+    framebuffer_write(3, 8,  't', 0, 0xF); 
+    framebuffer_write(3, 9,  'e', 0, 0xF);
+    framebuffer_write(3, 10, 's', 0, 0xF);
+    framebuffer_write(3, 11, 't', 0, 0xF);
+    framebuffer_write(3, 12, '!', 0, 0xF);
     framebuffer_set_cursor(3, 10);
     while (true) b += 1;
 
