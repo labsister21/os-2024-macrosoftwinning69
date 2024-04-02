@@ -1,6 +1,13 @@
 {
     "debug.onTaskErrors": "debugAnyway",
     "files.associations": {
-        "portio.h": "c"
+        "portio.h": "c",
+        "gdt.h": "c",
+        "idt.h": "c",
+        "kernel-entrypoint.h": "c",
+        "stdint.h": "c",
+        "framebuffer.h": "c",
+        "stdbool.h": "c"
     },
+    "ros.distro": "humble",
 }
