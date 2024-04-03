@@ -143,6 +143,38 @@ uint8_t ceil(float n) {
     return (int)n + 1;
 }
 
+int8_t read_directory(struct FAT32DriverRequest request) {
+    // Return 2 if parent cluster is invalid
+    if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE) return 2;
+    
+    // Get parent directory cluster
+    struct FAT32DirectoryTable dir_table;
+    memset(&dir_table, 0, CLUSTER_SIZE);
+    read_clusters(&dir_table, request.parent_cluster_number, 1);
+
+    // Iterate through all entries in the parent folder
+    for (uint8_t i = 0; i < 64; i++) {
+        struct FAT32DirectoryEntry dir_entry = dir_table.table[i];
+
+        // Check if directory entry is empty
+        if (dir_entry.user_attribute != UATTR_NOT_EMPTY) continue;
+
+        // Check if entry is a directory
+        if (dir_entry.attribute & ATTR_SUBDIRECTORY) {
+            // Check if buffer is enough
+            if (request.buffer_size < sizeof(struct FAT32DirectoryEntry)) {
+                return -1; // Buffer size is not enough
+            }
+
+            // Copy directory entry to buffer
+            memcpy(request.buf, &dir_entry, sizeof(struct FAT32DirectoryEntry));
+            request.buf += sizeof(struct FAT32DirectoryEntry);
+        }
+    }
+
+    return 0;
+}
+
 int8_t read(struct FAT32DriverRequest request) {
     // return 2 if parent cluster is invalid
     if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE){
@@ -167,7 +199,7 @@ int8_t read(struct FAT32DriverRequest request) {
             }
             
             // check if buffer is enough
-            if (ceil(request.buffer_size) < ceil((double)dir_entry.file_size / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
+            if (ceil(request.buffer_size) < ceil((double)dir_entry.filesize / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
                 return -1; // return -1 if buffer size is not enough
             }
 
