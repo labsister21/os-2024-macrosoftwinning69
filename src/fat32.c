@@ -143,9 +143,47 @@ uint8_t ceil(float n) {
     return (int)n + 1;
 }
 
-// int8_t read(struct FAT32DriverRequest request) {
-//     return 0;
-// }
+int8_t read(struct FAT32DriverRequest request) {
+    // return 2 if parent cluster is invalid
+    if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE){
+        return 2;
+    }
+
+    // get parent directory cluster
+    struct FAT32DirectoryTable dir_table;
+    memset(&dir_table, 0, CLUSTER_SIZE);
+    read_clusters(&dir_table, request.parent_cluster_number, 1);
+
+    // iterate through all entries in the parent folder, check if an entry with the same name exists
+    for (uint8_t i = 0; i < 64; i++) {
+        struct FAT32DirectoryEntry dir_entry = dir_table.table[i];
+
+        // check if dir_entry has the same name and ext
+        if (!memcmp(&dir_entry.name, &request.name, 8) && !memcmp(&dir_entry.ext, &request.ext, 3)) {
+            
+            // check if dir_entry is a file
+            if (dir_entry.attribute & 0x10){
+                return 1; // return 1 if it's a directory
+            }
+            
+            // check if buffer is enough
+            if (ceil(request.buffer_size) < ceil((double)dir_entry.file_size / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
+                return -1; // return -1 if buffer size is not enough
+            }
+
+            // read data from cluster
+            uint32_t current_cluster = (dir_entry.cluster_high << 16) | dir_entry.cluster_low;
+            while (current_cluster != FAT32_FAT_END_OF_FILE) {
+                read_clusters(request.buf, current_cluster, 1);
+                current_cluster = fat32_driverstate.fat_table.cluster_map[current_cluster];
+
+            }
+            return 0;
+        }
+    }
+
+    return 2; // return 2 if file is not found
+}
 
 // int8_t read_directory(struct FAT32DriverRequest request) {
 //     return 2;
