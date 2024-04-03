@@ -167,12 +167,17 @@ int8_t read(struct FAT32DriverRequest request) {
             }
             
             // check if buffer is enough
-            if (request.buffer_size < dir_entry.filesize) { // return -1 if buffer size is not enough
-                return -1;
+            if (ceil(request.buffer_size) < ceil((double)dir_entry.file_size / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
+                return -1; // return -1 if buffer size is not enough
             }
 
             // read data from cluster
-            read_clusters(request.buf, (dir_entry.cluster_high << 16) | dir_entry.cluster_low, dir_entry.filesize / CLUSTER_SIZE + 1);
+            uint32_t current_cluster = (dir_entry.cluster_high << 16) | dir_entry.cluster_low;
+            while (current_cluster != FAT32_FAT_END_OF_FILE) {
+                read_clusters(request.buf, current_cluster, 1);
+                current_cluster = fat32_driverstate.fat_table.cluster_map[current_cluster];
+
+            }
             return 0;
         }
     }
