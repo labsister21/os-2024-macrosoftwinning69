@@ -71,6 +71,11 @@ void kernel_setup(void) {
     };
     uint8_t write_dir = write(req);
     write_dir++;
+    // Modifikasi untuk testing read directory
+    if (write_dir != 0) {
+        // Menulis direktori gagal
+            write_string(15, 11, "Direktori gagal!", 0, 0x2);
+    }
 
     // Write file
     char* bufstr = "akldsaldldkadjkldxklajdksadiwqldakldaskldasd";
@@ -82,6 +87,23 @@ void kernel_setup(void) {
     };
     uint8_t write_file = write(req2);
     write_file++;
+
+     // Membaca direktori yang baru ditulis (Testing Read Directory)
+    struct FAT32DriverRequest read_req = {
+        // .buf = &fat32_driverstate.dir_table_buf,  // Buffer untuk menyimpan hasil bacaan
+        .name = "inifold",  // Nama direktori yang akan dibaca
+        .parent_cluster_number = ROOT_CLUSTER_NUMBER,
+        .buffer_size = sizeof(struct FAT32DirectoryTable)  // Ukuran buffer adalah ukuran dari FAT32DirectoryTable
+    };
+    int8_t read_result = read_directory(read_req);
+    if (read_result != 0) {
+        // Membaca direktori gagal, lakukan penanganan kesalahan di sini jika diperlukan
+    } else {
+        // Proses hasil pembacaan direktori di sini
+        // Misalnya, Anda dapat mencetak informasi direktori yang dibaca ke layar
+        struct FAT32DirectoryTable* dir_table = (struct FAT32DirectoryTable*) read_req.buf;
+        // TO DO : lakukan sesuatu dengan dir_table
+    }
 
     // int col = 0;
     // keyboard_state_activate();
