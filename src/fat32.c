@@ -145,7 +145,7 @@ uint8_t ceil(float n) {
 
 int8_t read_directory(struct FAT32DriverRequest request) {
     // Return 2 if parent cluster is invalid
-    if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE) return 2;
+    // if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE) return 1;
     
     // Get parent directory cluster
     struct FAT32DirectoryTable dir_table;
@@ -158,21 +158,27 @@ int8_t read_directory(struct FAT32DriverRequest request) {
 
         // Check if directory entry is empty
         if (dir_entry.user_attribute != UATTR_NOT_EMPTY) continue;
-
-        // Check if entry is a directory
-        if (dir_entry.attribute & ATTR_SUBDIRECTORY) {
-            // Check if buffer is enough
-            if (request.buffer_size < sizeof(struct FAT32DirectoryEntry)) {
-                return -1; // Buffer size is not enough
+        
+        // Check if dir_entry has the same name and ext
+        if (!memcmp(&dir_entry.name, &request.name, 8) && !memcmp(&dir_entry.ext, &request.ext, 3)){
+            // Check if entry is a directory
+            if (dir_entry.attribute == ATTR_SUBDIRECTORY) {
+                // Check if buffer is enough
+                if (request.buffer_size < sizeof(struct FAT32DirectoryEntry)) {
+                    return -1; // Buffer size is not enough
+                }
+                // Copy directory entry to buffer
+                uint32_t cluster = ((uint32_t) dir_entry.cluster_high << 16) | dir_entry.cluster_low;
+                read_clusters(request.buf, cluster, 1);
+                // request.buf += sizeof(struct FAT32DirectoryEntry);
+                return 0;
             }
-
-            // Copy directory entry to buffer
-            memcpy(request.buf, &dir_entry, sizeof(struct FAT32DirectoryEntry));
-            request.buf += sizeof(struct FAT32DirectoryEntry);
+            else{
+                return 1; // Error Code -> Folder not found
+            }
         }
     }
-
-    return 0;
+    return 2;
 }
 
 int8_t read(struct FAT32DriverRequest request) {
