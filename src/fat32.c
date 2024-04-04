@@ -199,7 +199,7 @@ int8_t read(struct FAT32DriverRequest request) {
             }
             
             // check if buffer is enough
-            if (ceil(request.buffer_size) < ceil((double)dir_entry.filesize / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
+            if (request.buffer_size < ceil((double)dir_entry.filesize / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
                 return -1; // return -1 if buffer size is not enough
             }
 
