@@ -143,6 +143,11 @@ uint8_t ceil(float n) {
     return (int)n + 1;
 }
 
+uint8_t floor(float n) {
+    if ((int)n == n) return (int)n;
+    return (int)n - 1;
+}
+
 int8_t read_directory(struct FAT32DriverRequest request) {
     // Return 2 if parent cluster is invalid
     if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE) return 2;
