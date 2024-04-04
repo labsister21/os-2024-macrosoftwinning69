@@ -205,9 +205,11 @@ int8_t read(struct FAT32DriverRequest request) {
 
             // read data from cluster
             uint32_t current_cluster = (dir_entry.cluster_high << 16) | dir_entry.cluster_low;
+            uint32_t clusters_read = 0;
             while (current_cluster != FAT32_FAT_END_OF_FILE) {
-                read_clusters(request.buf, current_cluster, 1);
+                read_clusters(request.buf + clusters_read * CLUSTER_SIZE, current_cluster, 1);
                 current_cluster = fat32_driverstate.fat_table.cluster_map[current_cluster];
+                clusters_read++;
 
             }
             return 0;
