@@ -59,6 +59,19 @@ void kernel_setup(void) {
     // Initialize filesystem FAT32
     initialize_filesystem_fat32();
 
+    // Read directory
+    struct FAT32DirectoryTable buf;
+    memset(&buf, 0, CLUSTER_SIZE);
+
+    struct FAT32DriverRequest req = {
+        .buf = &buf,
+        .name = "root",
+        .parent_cluster_number = ROOT_CLUSTER_NUMBER,
+        .buffer_size = CLUSTER_SIZE
+    };
+    int8_t read_dir = read_directory(req);
+    read_dir++;
+
     // Write folder
     // struct FAT32DriverRequest req = {
     //     .name = "inifold",
