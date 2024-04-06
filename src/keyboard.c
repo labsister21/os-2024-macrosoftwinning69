@@ -1,7 +1,7 @@
 #include "header/driver/keyboard.h"
 #include "header/text/framebuffer.h"
 #include "header/cpu/portio.h"
-#include "header/cpu/interrupt.h"
+#include "header/interrupt/interrupt.h"
 #include "header/stdlib/string.h"
 
 // mendefinisikan state driver keyboard
