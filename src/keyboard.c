@@ -5,7 +5,12 @@
 #include "header/stdlib/string.h"
 
 // mendefinisikan state driver keyboard
-static struct KeyboardDriverState keyboard_state;
+static struct KeyboardDriverState keyboard_state = {
+    .row = 0,
+    .col = 0,
+    .press_shift = false,
+    .press_ctrl = false
+};
 
 const char keyboard_scancode_1_to_ascii_map[256] = {
       0, 0x1B, '1', '2', '3', '4', '5', '6',  '7', '8', '9',  '0',  '-', '=', '\b', '\t',
@@ -35,63 +40,63 @@ const char keyboard_scancode_1_to_ascii_map_shift[256] = {
 };
 
 void keyboard_isr(void){
-  // membaca scancode dari port data keyboard
-  uint8_t scancode = in(KEYBOARD_DATA_PORT);
-  // TODO : Implement scancode processing
-  
-  //variabel lokal untuk melacak apakah tombol shift sedang ditekan atau tidak
-  static bool shift_pressed = false;
+    // membaca scancode dari port data keyboard
+    uint8_t scancode = in(KEYBOARD_DATA_PORT);
+    // TODO : Implement scancode processing
 
-  // memeriksa apakah tombol shift ditekan atau tidak
-  if (scancode == 0x2A || scancode == 0x36){ // scancode untuk shift ditekan
-    shift_pressed = true;
-  }
-  else if (scancode == 0xAA || scancode == 0x86){ // scancode saat shift dilepas
-    shift_pressed = false;
-  }
+    //variabel lokal untuk melacak apakah tombol shift sedang ditekan atau tidak
+    // static bool shift_pressed = false;
 
-  // jika keyboard_input_on bernilai true
-  if (keyboard_state.keyboard_input_on){
-    // memproses scancode yang diterima ke karakter ascii
-    char ascii_char;
-    if (scancode == 0x1C){ // enter
-      ascii_char = '\n';
-    }
-    else if (scancode == 0x0E){ // backspace
-      ascii_char = '\b';
-    }
-    else if (scancode == 0x0F){ // tab
-      ascii_char = '\t';
-    }
-    else if (shift_pressed){ // jika shift ditekan
-      ascii_char = keyboard_scancode_1_to_ascii_map_shift[scancode];
-    }
-    else{ // jika shift tidak ditekan
-      ascii_char = keyboard_scancode_1_to_ascii_map[scancode];
-    }
-  
-    // menyimpan karakter ascii ke dalam buffer keyboard
-    keyboard_state.keyboard_buffer = ascii_char;
-  } 
-  // melakukan pic_ack() ke IRQ1
-  // pic_ack(1);
+    // memeriksa apakah tombol shift ditekan atau tidak
+
+    // jika keyboard_input_on bernilai true
+    if (keyboard_state.keyboard_input_on){
+        // memproses scancode yang diterima ke karakter ascii
+        char ascii_char;
+        if (scancode == 0x2A || scancode == 0x36){ // scancode untuk shift ditekan
+            keyboard_state.press_shift = true;
+        }
+        else if (scancode == 0xAA || scancode == 0x86){ // scancode saat shift dilepas
+            keyboard_state.press_shift = false;
+        }
+        else if (scancode == 0x1C){ // enter
+            ascii_char = '\n';
+        }
+        else if (scancode == 0x0E){ // backspace
+            ascii_char = '\b';
+        }
+        else if (scancode == 0x0F){ // tab
+            ascii_char = '\t';
+        }
+        else if (keyboard_state.press_shift){ // jika shift ditekan
+            ascii_char = keyboard_scancode_1_to_ascii_map_shift[scancode];
+        }
+        else{ // jika shift tidak ditekan
+            ascii_char = keyboard_scancode_1_to_ascii_map[scancode];
+        }
+
+        // menyimpan karakter ascii ke dalam buffer keyboard
+        keyboard_state.keyboard_buffer = ascii_char;
+    } 
+    // melakukan pic_ack() ke IRQ1
+    pic_ack(1);
 }
 
 // mengaktifkan pembacaan input keyboard
 void keyboard_state_activate(void){
-  keyboard_state.keyboard_input_on = true;
+    keyboard_state.keyboard_input_on = true;
 }
 
 // mematikan pembacaan input keyboard
 void keyboard_state_deactivate(void){
-  keyboard_state.keyboard_input_on = false;
+    keyboard_state.keyboard_input_on = false;
 }
 
 // mengambil dan mengosongkan buffer keyboard
 void get_keyboard_buffer(char *buf){
-  //mengcopy isi buffer keyboard ke buf
-  *buf = keyboard_state.keyboard_buffer;
-  
-  // mengosongkan buffer keyboard
-  keyboard_state.keyboard_buffer = 0;
+    //mengcopy isi buffer keyboard ke buf
+    *buf = keyboard_state.keyboard_buffer;
+
+    // mengosongkan buffer keyboard
+    keyboard_state.keyboard_buffer = 0;
 }

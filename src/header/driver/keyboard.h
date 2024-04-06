@@ -30,14 +30,19 @@ extern const char keyboard_scancode_1_to_ascii_map[256];
  * @param keyboard_buffer    Storing keyboard input values in ASCII
  */
 struct KeyboardDriverState {
+    // Keyboard driver status
     bool read_extended_mode;
     bool keyboard_input_on;
     char keyboard_buffer;
+
+    // Keyboard status
+    bool press_shift;
+    bool press_ctrl;
+
+    // Cursor
+    uint8_t row;
+    uint8_t col;
 } __attribute((packed));
-
-
-
-
 
 /* -- Driver Interfaces -- */
 
