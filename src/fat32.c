@@ -143,6 +143,11 @@ uint8_t ceil(float n) {
     return (int)n + 1;
 }
 
+uint8_t floor(float n) {
+    if ((int)n == n) return (int)n;
+    return (int)n - 1;
+}
+
 int8_t read_directory(struct FAT32DriverRequest request) {
     // Return 2 if parent cluster is invalid
     // if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE) return 1;
@@ -205,15 +210,17 @@ int8_t read(struct FAT32DriverRequest request) {
             }
             
             // check if buffer is enough
-            if (ceil(request.buffer_size) < ceil((double)dir_entry.filesize / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
+            if (floor(request.buffer_size / CLUSTER_SIZE) < ceil((double)dir_entry.filesize / CLUSTER_SIZE)) { // return -1 if buffer size is not enough
                 return -1; // return -1 if buffer size is not enough
             }
 
             // read data from cluster
             uint32_t current_cluster = (dir_entry.cluster_high << 16) | dir_entry.cluster_low;
+            uint32_t clusters_read = 0;
             while (current_cluster != FAT32_FAT_END_OF_FILE) {
-                read_clusters(request.buf, current_cluster, 1);
+                read_clusters(request.buf + clusters_read * CLUSTER_SIZE, current_cluster, 1);
                 current_cluster = fat32_driverstate.fat_table.cluster_map[current_cluster];
+                clusters_read++;
 
             }
             return 0;

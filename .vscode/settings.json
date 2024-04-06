@@ -2,7 +2,14 @@
     "debug.onTaskErrors": "debugAnyway",
     "files.associations": {
         "portio.h": "c",
+        "gdt.h": "c",
+        "idt.h": "c",
+        "kernel-entrypoint.h": "c",
+        "stdint.h": "c",
+        "framebuffer.h": "c",
+        "stdbool.h": "c"
         "keyboard.h": "c",
         "interrupt.h": "c"
     },
+    "ros.distro": "humble",
 }
