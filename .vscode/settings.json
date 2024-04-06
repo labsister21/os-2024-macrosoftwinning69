@@ -8,6 +8,8 @@
         "stdint.h": "c",
         "framebuffer.h": "c",
         "stdbool.h": "c"
+        "keyboard.h": "c",
+        "interrupt.h": "c"
     },
     "ros.distro": "humble",
 }
