@@ -48,7 +48,6 @@ void kernel_setup(void) {
     pic_remap();
     initialize_idt();
     activate_keyboard_interrupt();
-    __asm__("int $0x4");
 
     // Framebuffer operations
     framebuffer_clear();
@@ -56,13 +55,6 @@ void kernel_setup(void) {
     write_string(10, 8, "Hello, User!", 0, 0x2);
     write_string(11, 11, "Welcome to Macrosoft Winning OS!", 0, 0x2);
     framebuffer_set_cursor(0, 0);
-    // __asm__("int $0x4");
-
-    // Filesystem operations
-    // struct BlockBuffer b;
-    // for (int i = 0; i < 512; i++) b.buf[i] = i % 16;
-    // write_blocks(&b, 17, 1);
-    // while (true);
 
     // Initialize filesystem FAT32
     initialize_filesystem_fat32();
