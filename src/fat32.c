@@ -161,22 +161,21 @@ int8_t read_directory(struct FAT32DriverRequest request) {
     for (uint8_t i = 0; i < 64; i++) {
         struct FAT32DirectoryEntry dir_entry = dir_table.table[i];
 
-        // Check if directory entry is empty
-        if (dir_entry.user_attribute != UATTR_NOT_EMPTY) continue;
-
-        // Check if entry is a directory
-        if (dir_entry.attribute & ATTR_SUBDIRECTORY) {
+        if (!memcmp(&dir_entry.name, &request.name, 8) && !memcmp(&dir_entry.ext, &request.ext, 3)) {            
+            // Check if entry is a directory
+            if (dir_entry.attribute != ATTR_SUBDIRECTORY) return 1;
+            
             // Check if buffer is enough
             if (request.buffer_size < sizeof(struct FAT32DirectoryEntry)) {
                 return -1; // Buffer size is not enough
             }
 
+            uint32_t cluster_num = dir_entry.cluster_low | ((uint32_t)dir_entry.cluster_high << 16);
+
             // Copy directory entry to buffer
-            memcpy(request.buf, &dir_entry, sizeof(struct FAT32DirectoryEntry));
-            request.buf += sizeof(struct FAT32DirectoryEntry);
+            read_clusters(request.buf, cluster_num, 1);
         }
     }
-
     return 0;
 }
 
