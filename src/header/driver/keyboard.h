@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include "header/interrupt/interrupt.h"
 
+#define MAX_ROWS 25
+
 #define EXT_SCANCODE_UP        0x48
 #define EXT_SCANCODE_DOWN      0x50
 #define EXT_SCANCODE_LEFT      0x4B
@@ -42,6 +44,7 @@ struct KeyboardDriverState {
     // Cursor
     uint8_t row;
     uint8_t col;
+    uint8_t last_non_space_col[MAX_ROWS];
 } __attribute((packed));
 
 /* -- Driver Interfaces -- */

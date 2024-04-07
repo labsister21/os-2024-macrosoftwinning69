@@ -9,7 +9,8 @@ static struct KeyboardDriverState keyboard_state = {
     .row = 0,
     .col = 0,
     .press_shift = false,
-    .press_ctrl = false
+    .press_ctrl = false,
+    .last_non_space_col = {0}
 };
 
 const char keyboard_scancode_1_to_ascii_map[256] = {
@@ -42,17 +43,12 @@ const char keyboard_scancode_1_to_ascii_map_shift[256] = {
 void keyboard_isr(void){
     // membaca scancode dari port data keyboard
     uint8_t scancode = in(KEYBOARD_DATA_PORT);
-    // TODO : Implement scancode processing
-
-    //variabel lokal untuk melacak apakah tombol shift sedang ditekan atau tidak
-    // static bool shift_pressed = false;
-
-    // memeriksa apakah tombol shift ditekan atau tidak
+    // variabel lokal untuk menyimpan karakter ascii yang akan diproses
+    char ascii_char = 0;
 
     // jika keyboard_input_on bernilai true
     if (keyboard_state.keyboard_input_on){
         // memproses scancode yang diterima ke karakter ascii
-        char ascii_char;
         if (scancode == 0x2A || scancode == 0x36){ // scancode untuk shift ditekan
             keyboard_state.press_shift = true;
         }
@@ -60,13 +56,24 @@ void keyboard_isr(void){
             keyboard_state.press_shift = false;
         }
         else if (scancode == 0x1C){ // enter
-            ascii_char = '\n';
+            // maju ke baris berikutnya
+            keyboard_state.row++;
+            keyboard_state.col = 0;
         }
         else if (scancode == 0x0E){ // backspace
-            ascii_char = '\b';
+            // hapus karakter sebelumnya jika buffer tidak kosong
+            if (keyboard_state.col > 0) {
+                keyboard_state.col--;
+                framebuffer_write(keyboard_state.row, keyboard_state.col, ' ', 0x07, 0x00);
+            } else if (keyboard_state.row > 0) { // jika posisi kolom adalah 0
+                // kembali ke baris sebelumnya dan ke kolom terakhir yang berisi karakter non-spasi
+                keyboard_state.row--;
+                keyboard_state.col = keyboard_state.last_non_space_col[keyboard_state.row] + 1;
+            }
         }
         else if (scancode == 0x0F){ // tab
-            ascii_char = '\t';
+            // maju ke kolom berikutnya yang merupakan kelipatan 4
+            keyboard_state.col = (keyboard_state.col + 4) & ~3;
         }
         else if (keyboard_state.press_shift){ // jika shift ditekan
             ascii_char = keyboard_scancode_1_to_ascii_map_shift[scancode];
@@ -75,8 +82,17 @@ void keyboard_isr(void){
             ascii_char = keyboard_scancode_1_to_ascii_map[scancode];
         }
 
-        // menyimpan karakter ascii ke dalam buffer keyboard
-        keyboard_state.keyboard_buffer = ascii_char;
+        // jika ascii_char bukan 0, berarti bukan tombol khusus yang sudah ditangani
+        if (ascii_char != 0) {
+            // menyimpan karakter ascii ke dalam framebuffer
+            framebuffer_write(keyboard_state.row, keyboard_state.col, ascii_char, 0x07, 0x00);
+            // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
+            if (ascii_char != ' ') {
+                keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
+            }
+            // Maju ke kolom berikutnya
+            keyboard_state.col++;
+        }
     } 
     // melakukan pic_ack() ke IRQ1
     pic_ack(1);
