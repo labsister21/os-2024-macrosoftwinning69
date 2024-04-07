@@ -161,21 +161,22 @@ int8_t read_directory(struct FAT32DriverRequest request) {
     for (uint8_t i = 0; i < 64; i++) {
         struct FAT32DirectoryEntry dir_entry = dir_table.table[i];
 
-        if (!memcmp(&dir_entry.name, &request.name, 8) && !memcmp(&dir_entry.ext, &request.ext, 3)) {            
-            // Check if entry is a directory
-            if (dir_entry.attribute != ATTR_SUBDIRECTORY) return 1;
-            
+        // Check if directory entry is empty
+        if (dir_entry.user_attribute != UATTR_NOT_EMPTY) continue;
+
+        // Check if entry is a directory
+        if (dir_entry.attribute & ATTR_SUBDIRECTORY) {
             // Check if buffer is enough
             if (request.buffer_size < sizeof(struct FAT32DirectoryEntry)) {
                 return -1; // Buffer size is not enough
             }
 
-            uint32_t cluster_num = dir_entry.cluster_low | ((uint32_t)dir_entry.cluster_high << 16);
-
             // Copy directory entry to buffer
-            read_clusters(request.buf, cluster_num, 1);
+            memcpy(request.buf, &dir_entry, sizeof(struct FAT32DirectoryEntry));
+            request.buf += sizeof(struct FAT32DirectoryEntry);
         }
     }
+
     return 0;
 }
 
@@ -324,6 +325,41 @@ int8_t write(struct FAT32DriverRequest request) {
     return 0;
 }
 
-// int8_t delete(struct FAT32DriverRequest request) {
-//     return 0;
-// }
+int8_t delete(struct FAT32DriverRequest request) {
+    if (fat32_driverstate.fat_table.cluster_map[request.parent_cluster_number] != FAT32_FAT_END_OF_FILE) return 2;
+    
+    // dapetin direktori cluster parent
+    struct FAT32DirectoryTable dir_table;
+    memset(&dir_table, 0, CLUSTER_SIZE);
+    read_clusters(&dir_table, request.parent_cluster_number, 1);
+
+    for (uint8_t i = 0; i < 64; i++) {
+        struct FAT32DirectoryEntry dir_entry = dir_table.table[i];
+
+        if (!memcmp(&dir_entry.name, &request.name, 8) && !memcmp(&dir_entry.ext, &request.ext, 3)) {
+            // kondisi ketika dia adalah folder
+            if (dir_entry.attribute == ATTR_SUBDIRECTORY && dir_entry.user_attribute == UATTR_EMPTY) {
+                return 2; // folder yg mau dihapus ga kosong
+            }
+
+            dir_entry.user_attribute = UATTR_EMPTY;
+            write_clusters(&dir_table, request.parent_cluster_number, 1);
+
+            // clear cluster
+            uint32_t current_cluster = (dir_entry.cluster_high << 16) | dir_entry.cluster_low;
+            uint32_t next_cluster = fat32_driverstate.fat_table.cluster_map[current_cluster];
+            fat32_driverstate.fat_table.cluster_map[current_cluster] = FAT32_FAT_EMPTY_ENTRY;
+            while (next_cluster != FAT32_FAT_END_OF_FILE) {
+                current_cluster = next_cluster;
+                next_cluster = fat32_driverstate.fat_table.cluster_map[current_cluster];
+                fat32_driverstate.fat_table.cluster_map[current_cluster] = FAT32_FAT_EMPTY_ENTRY;
+            }
+
+            write_clusters(&(fat32_driverstate.fat_table), FAT_CLUSTER_NUMBER, 1);
+
+            return 0;
+        }
+    }
+
+    return 1; // kalau file atau folder tdk ditemukan
+}
