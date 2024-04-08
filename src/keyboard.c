@@ -61,16 +61,16 @@ void keyboard_isr(void){
             keyboard_state.col = 0;
         }
         else if (scancode == 0x0E){ // backspace
-            // Hapus karakter sebelumnya jika buffer tidak kosong
+            // hapus karakter sebelumnya jika buffer tidak kosong
             if (keyboard_state.col > 0) {
                 keyboard_state.col--;
                 framebuffer_write(keyboard_state.row, keyboard_state.col, ' ', 0x07, 0x00);
-            } else if (keyboard_state.row > 0) { // Jika posisi kolom adalah 0
-                // Kembali ke baris sebelumnya dan ke kolom terakhir yang berisi karakter non-spasi
+            } else if (keyboard_state.row > 0) { // jika posisi kolom adalah 0
+                // kmbali ke baris sebelumnya dan ke kolom terakhir yang berisi karakter non-spasi
                 keyboard_state.row--;
                 keyboard_state.col = keyboard_state.last_non_space_col[keyboard_state.row] + 1;
             }
-            // Update cursor position
+            // update posisi cursor
             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
         }
         else if (scancode == 0x0F){ // tab
@@ -88,13 +88,13 @@ void keyboard_isr(void){
         if (ascii_char != 0) {
             // menyimpan karakter ascii ke dalam framebuffer
             framebuffer_write(keyboard_state.row, keyboard_state.col, ascii_char, 0x07, 0x00);
-            // Jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
+            // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
             if (ascii_char != ' ') {
                 keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
             }
-            // Maju ke kolom berikutnya
+            // maju ke kolom berikutnya
             keyboard_state.col++;
-            // Update cursor position
+            // update posisi kursor
             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
         }
     } 
