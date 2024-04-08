@@ -59,6 +59,9 @@ void keyboard_isr(void){
             // maju ke baris berikutnya
             keyboard_state.row++;
             keyboard_state.col = 0;
+            
+            // update posisi cursor
+            framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
         }
         else if (scancode == 0x0E){ // backspace
             // hapus karakter sebelumnya jika buffer tidak kosong
