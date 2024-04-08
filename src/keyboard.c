@@ -79,6 +79,9 @@ void keyboard_isr(void){
         else if (scancode == 0x0F){ // tab
             // maju ke kolom berikutnya yang merupakan kelipatan 4
             keyboard_state.col = (keyboard_state.col + 4) & ~3;
+
+            // update posisi cursor
+            framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
         }
         else if (keyboard_state.press_shift){ // jika shift ditekan
             ascii_char = keyboard_scancode_1_to_ascii_map_shift[scancode];
