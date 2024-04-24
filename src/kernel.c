@@ -60,17 +60,38 @@ void kernel_setup(void) {
     initialize_filesystem_fat32();
 
     // Read directory
-    struct FAT32DirectoryTable buf;
-    memset(&buf, 0, CLUSTER_SIZE);
+    // struct FAT32DirectoryTable buf;
+    // memset(&buf, 0, CLUSTER_SIZE);
 
-    struct FAT32DriverRequest req = {
-        .buf = &buf,
-        .name = "root",
-        .parent_cluster_number = ROOT_CLUSTER_NUMBER,
-        .buffer_size = CLUSTER_SIZE
-    };
-    int8_t read_dir = read_directory(req);
-    read_dir++;
+    // struct FAT32DriverRequest req = {
+    //     .buf = &buf,
+    //     .name = "nestedf1",
+    //     .parent_cluster_number = 4,
+    //     .buffer_size = CLUSTER_SIZE
+    // };
+    // int8_t read_dir = read_directory(req);
+    // read_dir++;
+
+    // Read file
+    // uint8_t buf[CLUSTER_SIZE * 3];
+    // memset(&buf, 0, CLUSTER_SIZE * 3);
+
+    // struct FAT32DriverRequest req2 = {
+    //     .buf = &buf,
+    //     .name = "daijoubu",
+    //     .parent_cluster_number = 4,
+    //     .buffer_size = CLUSTER_SIZE * 3
+    // };
+    // int8_t read_file = read(req2);
+    // read_file++;
+
+    // Delete file
+    // struct FAT32DriverRequest req6 = {
+    //     .name = "lol",
+    //     .parent_cluster_number = ROOT_CLUSTER_NUMBER
+    // };
+    // int8_t delete6 = delete(req6);
+    // delete6++;
 
     // Write folder
     // struct FAT32DriverRequest req = {
