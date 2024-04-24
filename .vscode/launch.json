@@ -36,6 +36,10 @@
                     "description": "Get shell symbols"
                 },
                 {
+                    "text": "add-symbol-file home-scr_elf",
+                    "description": "Get home-scr symbols"
+                },
+                {
                     "text": "set output-radix 16",
                     "description": "Use hexadecimal output"
                 }

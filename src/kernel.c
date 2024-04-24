@@ -78,7 +78,8 @@ void kernel_setup(void) {
         .parent_cluster_number = ROOT_CLUSTER_NUMBER,
         .buffer_size           = 0x100000,
     };
-    read(request);
+    int8_t xd = read(request);
+    xd++;
 
     // Write home screen to memory
     struct FAT32DriverRequest hsc_request = {
@@ -87,14 +88,15 @@ void kernel_setup(void) {
         .parent_cluster_number  = ROOT_CLUSTER_NUMBER,
         .buffer_size            = 0x100000
     };
-    read(hsc_request);
+    int8_t lol = read(hsc_request);
+    lol++;
 
     // Set TSS $esp pointer and jump into shell 
     set_tss_kernel_current_stack();
-    // kernel_execute_user_program((uint8_t*) 0);
-    kernel_execute_user_program((uint8_t*) 0x400000);
+    // kernel_execute_user_program((uint8_t*) 0x400000);
+    kernel_execute_user_program((uint8_t*) 0);
 
-    while (true);
+    // while (true);
 
     // int col = 0;
     // keyboard_state_activate();
