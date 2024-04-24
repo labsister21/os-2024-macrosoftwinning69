@@ -62,13 +62,47 @@ void kernel_setup(void) {
     // Initialize filesystem FAT32
     initialize_filesystem_fat32();
 
-    int col = 0;
-    keyboard_state_activate();
-    while (true){
-        char c;
-        get_keyboard_buffer(&c);
-        if (c) framebuffer_write(0, col++, c, 0xF, 0);
-    }
+    // Setup user mode
+    gdt_install_tss();
+    set_tss_register();
+
+    // Allocate first 4 MiB virtual memory
+    paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0);
+    paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x400000);
+
+    // Write shell into memory
+    struct FAT32DriverRequest request = {
+        .buf                   = (uint8_t*) 0,
+        .name                  = "shell",
+        .ext                   = "\0\0\0",
+        .parent_cluster_number = ROOT_CLUSTER_NUMBER,
+        .buffer_size           = 0x100000,
+    };
+    read(request);
+
+    // Write home screen to memory
+    struct FAT32DriverRequest hsc_request = {
+        .buf                    = (uint8_t*) 0x400000,
+        .name                   = "home-scr",
+        .parent_cluster_number  = ROOT_CLUSTER_NUMBER,
+        .buffer_size            = 0x100000
+    };
+    read(hsc_request);
+
+    // Set TSS $esp pointer and jump into shell 
+    set_tss_kernel_current_stack();
+    // kernel_execute_user_program((uint8_t*) 0);
+    kernel_execute_user_program((uint8_t*) 0x400000);
+
+    while (true);
+
+    // int col = 0;
+    // keyboard_state_activate();
+    // while (true){
+    //     char c;
+    //     get_keyboard_buffer(&c);
+    //     if (c) framebuffer_write(0, col++, c, 0xF, 0);
+    // }
 
     // Read directory
     // struct FAT32DirectoryTable buf;

@@ -47,6 +47,8 @@ struct KeyboardDriverState {
     uint8_t last_non_space_col[MAX_ROWS];
 } __attribute((packed));
 
+extern struct KeyboardDriverState keyboard_state;
+
 /* -- Driver Interfaces -- */
 
 // Activate keyboard ISR / start listen keyboard & save to buffer
