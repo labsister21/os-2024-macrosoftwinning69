@@ -8,6 +8,8 @@
 #include "header/driver/keyboard.h"
 #include "header/filesystem/disk.h"
 #include "header/filesystem/fat32.h"
+#include "header/stdlib/string.h"
+#include "header/memory/paging.h"
 #include "header/background.h"
 
 void write_string(int row, int col, char* str, int fg, int bg) {
@@ -37,9 +39,10 @@ void create_bg() {
 }
 
 void kernel_setup(void) {
-    // uint32_t a;
-    // uint32_t volatile b = 0x0000BABE;
-    // __asm__("mov $0xCAFE0000, %0" : "=r"(a));
+    // Test paging
+    // paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x600000);
+    // paging_free_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x700000);
+    // *((uint8_t*) 0x500000) = 1;
 
     // Load GDT
     load_gdt(&_gdt_gdtr);
@@ -59,66 +62,79 @@ void kernel_setup(void) {
     // Initialize filesystem FAT32
     initialize_filesystem_fat32();
 
-    // Read directory
-    struct FAT32DirectoryTable buf;
-    memset(&buf, 0, CLUSTER_SIZE);
+    // Setup user mode
+    gdt_install_tss();
+    set_tss_register();
 
-    struct FAT32DriverRequest req = {
-        .buf = &buf,
-        .name = "root",
+    // Allocate first 4 MiB virtual memory
+    paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0);
+    paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x400000);
+
+    // Write shell into memory
+    struct FAT32DriverRequest request = {
+        .buf                   = (uint8_t*) 0,
+        .name                  = "shell",
+        .ext                   = "\0\0\0",
         .parent_cluster_number = ROOT_CLUSTER_NUMBER,
-        .buffer_size = CLUSTER_SIZE
+        .buffer_size           = 0x100000,
     };
-    int8_t read_dir = read_directory(req);
-    read_dir++;
+    read(request);
 
-    // Write folder
+    // Write home screen to memory
+    struct FAT32DriverRequest hsc_request = {
+        .buf                    = (uint8_t*) 0x400000,
+        .name                   = "home-scr",
+        .parent_cluster_number  = ROOT_CLUSTER_NUMBER,
+        .buffer_size            = 0x100000
+    };
+    read(hsc_request);
+
+    // Set TSS $esp pointer and jump into shell 
+    set_tss_kernel_current_stack();
+    // kernel_execute_user_program((uint8_t*) 0);
+    kernel_execute_user_program((uint8_t*) 0x400000);
+
+    while (true);
+
+    // int col = 0;
+    // keyboard_state_activate();
+    // while (true){
+    //     char c;
+    //     get_keyboard_buffer(&c);
+    //     if (c) framebuffer_write(0, col++, c, 0xF, 0);
+    // }
+
+    // Read directory
+    // struct FAT32DirectoryTable buf;
+    // memset(&buf, 0, CLUSTER_SIZE);
+
     // struct FAT32DriverRequest req = {
-    //     .name = "inifold",
-    //     .parent_cluster_number = ROOT_CLUSTER_NUMBER,
-    //     .buffer_size = 0
+    //     .buf = &buf,
+    //     .name = "nestedf1",
+    //     .parent_cluster_number = 4,
+    //     .buffer_size = CLUSTER_SIZE
     // };
-    // uint8_t write_dir = write(req);
-    // write_dir++;
-    // // Modifikasi untuk testing read directory
-    // if (write_dir != 0) {
-    //     // Menulis direktori gagal
-    //         write_string(15, 11, "Direktori gagal!", 0, 0x2);
-    // }
+    // int8_t read_dir = read_directory(req);
+    // read_dir++;
 
-    // // Write file
-    // char* bufstr = "akldsaldldkadjkldxklajdksadiwqldakldaskldasd";
+    // Read file
+    // uint8_t buf[CLUSTER_SIZE * 3];
+    // memset(&buf, 0, CLUSTER_SIZE * 3);
+
     // struct FAT32DriverRequest req2 = {
-    //     .buf = bufstr,
-    //     .name = "inifile2",
-    //     .parent_cluster_number = 5,
-    //     .buffer_size = 0
+    //     .buf = &buf,
+    //     .name = "daijoubu",
+    //     .parent_cluster_number = 4,
+    //     .buffer_size = CLUSTER_SIZE * 3
     // };
-    // uint8_t write_file = write(req2);
-    // write_file++;
+    // int8_t read_file = read(req2);
+    // read_file++;
 
-    //  // Membaca direktori yang baru ditulis (Testing Read Directory)
-    // struct FAT32DriverRequest read_req = {
-    //     // .buf = &fat32_driverstate.dir_table_buf,  // Buffer untuk menyimpan hasil bacaan
-    //     .name = "inifold",  // Nama direktori yang akan dibaca
-    //     .parent_cluster_number = ROOT_CLUSTER_NUMBER,
-    //     .buffer_size = sizeof(struct FAT32DirectoryTable)  // Ukuran buffer adalah ukuran dari FAT32DirectoryTable
+    // Delete file
+    // struct FAT32DriverRequest req6 = {
+    //     .name = "lol",
+    //     .parent_cluster_number = ROOT_CLUSTER_NUMBER
     // };
-    // int8_t read_result = read_directory(read_req);
-    // if (read_result != 0) {
-    //     // Membaca direktori gagal, lakukan penanganan kesalahan di sini jika diperlukan
-    // } else {
-    //     // Proses hasil pembacaan direktori di sini
-    //     // Misalnya, Anda dapat mencetak informasi direktori yang dibaca ke layar
-    //     struct FAT32DirectoryTable* dir_table = (struct FAT32DirectoryTable*) read_req.buf;
-    //     // TO DO : lakukan sesuatu dengan dir_table
-    // }
-
-    int col = 0;
-    keyboard_state_activate();
-    while (true){
-        char c;
-        get_keyboard_buffer(&c);
-        if (c) framebuffer_write(0, col++, c, 0xF, 0);
-    }
+    // int8_t delete6 = delete(req6);
+    // delete6++;
 }

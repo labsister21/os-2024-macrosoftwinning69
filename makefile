@@ -6,9 +6,10 @@ ISOGEN		  = genisoimage
 
 # Directory
 SOURCE_FOLDER = src
+USER_PROGRAM_FOLDER = src/user-program
 OUTPUT_FOLDER = bin
 ISO_NAME      = OS2024
-DISK_NAME     = sample-image-copy
+DISK_NAME     = shell-test
 
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
@@ -49,23 +50,6 @@ kernel: $(OBJS)
 	@echo Linking object files and generate elf32...
 	@rm -f *.o
 
-# kernel:
-# 	# ASM
-# 	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/kernel-entrypoint.s -o $(OUTPUT_FOLDER)/kernel-entrypoint.o
-	
-# 	# C
-# 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/kernel.c -o $(OUTPUT_FOLDER)/kernel.o
-# 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/gdt.c -o $(OUTPUT_FOLDER)/gdt.o
-# 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/portio.c -o $(OUTPUT_FOLDER)/portio.o
-# 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/framebuffer.c -o $(OUTPUT_FOLDER)/framebuffer.o
-# 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/interrupt.c -o $(OUTPUT_FOLDER)/interrupt.o
-# 	# @$(CC) $(CFLAGS) $(SOURCE_FOLDER)/keyboard.c -o $(OUTPUT_FOLDER)/keyboard.o
-	
-# 	# Linker
-# 	@$(LIN) $(LFLAGS) bin/*.o -o $(OUTPUT_FOLDER)/kernel
-# 	@echo Linking object files and generate elf32...
-# 	@rm -f *.o
-
 iso: kernel
 	@mkdir -p $(OUTPUT_FOLDER)/iso/boot/grub
 	@cp $(OUTPUT_FOLDER)/kernel     $(OUTPUT_FOLDER)/iso/boot/
@@ -83,3 +67,39 @@ iso: kernel
 		-o $(OUTPUT_FOLDER)/OS2024.iso \
 		$(OUTPUT_FOLDER)/iso
 	#@rm -r $(OUTPUT_FOLDER)/iso/
+
+inserter:
+	@$(CC) -Wno-builtin-declaration-mismatch -g \
+		$(SOURCE_FOLDER)/string.c $(SOURCE_FOLDER)/fat32.c \
+		$(USER_PROGRAM_FOLDER)/external-inserter.c \
+		-o $(OUTPUT_FOLDER)/inserter
+
+user-shell:
+# ASM Flags 
+	@$(ASM) $(AFLAGS) $(USER_PROGRAM_FOLDER)/crt0.s -o crt0.o
+# CC Flags
+	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/string.c -o stdmem.o
+	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/user-shell.c -o user-shell.o
+	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/home-screen.c -o home-screen.o
+# LIN Flags
+	@$(LIN) -T $(USER_PROGRAM_FOLDER)/user-linker.ld -melf_i386 --oformat=binary \
+		crt0.o user-shell.o stdmem.o -o $(OUTPUT_FOLDER)/shell
+	@echo Linking object shell object files and generate flat binary...
+	@$(LIN) -T $(USER_PROGRAM_FOLDER)/user-linker.ld -melf_i386 --oformat=elf32-i386\
+		crt0.o user-shell.o stdmem.o -o $(OUTPUT_FOLDER)/shell_elf
+
+	@$(LIN) -T $(USER_PROGRAM_FOLDER)/home-screen-linker.ld -melf_i386 --oformat=binary \
+	crt0.o home-screen.o stdmem.o -o $(OUTPUT_FOLDER)/home-scr
+	@echo Linking object home-scr object files and generate flat binary...
+	@$(LIN) -T $(USER_PROGRAM_FOLDER)/home-screen-linker.ld -melf_i386 --oformat=elf32-i386\
+		crt0.o home-screen.o stdmem.o -o $(OUTPUT_FOLDER)/home-scr_elf
+# Misc
+	@echo Linking object shell object files and generate ELF32 for debugging...
+	@size --target=binary bin/shell
+	@size --target=binary bin/home-scr
+	@rm -f *.o
+
+
+insert-shell: inserter user-shell
+	@echo Inserting shell into root directory...
+		@cd $(OUTPUT_FOLDER); ./inserter shell 2 $(DISK_NAME).bin; ./inserter home-scr 2 $(DISK_NAME).bin
