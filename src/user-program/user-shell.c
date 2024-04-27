@@ -1,5 +1,13 @@
 #include <stdint.h>
+#include <string.h>
 #include "../header/filesystem/fat32.h"
+
+#define BLOCK_COUNT 16
+
+char currentdir[255] = "/";
+uint8_t currentdirlen = 1;
+
+uint32_t currentdirnode = 1;
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -49,6 +57,40 @@ int main(void) {
     }
 
     return 0;
+}
+
+void ls(struct FAT32DriverRequest *request, char *dirname)
+{
+    strncpy(request->name, dirname, 8);
+    request->buffer_size = BLOCK_SIZE * BLOCK_COUNT;
+    int8_t retval = sys_read_directory(request);
+    if (retval != 0)
+    {
+        puts(dirname);
+        puts(": No such file or directory\n");
+        return;
+    }
+    uint32_t offset = get_directory_first_child_offset(request->buf);
+    struct FAT32DirectoryEntry *entry = get_directory_entry(request->buf, offset);
+    while (entry->name[0] != 0){
+        if (entry->attribute == 0x10){ //directory
+            request->parent_cluster_number = ((uint32_t)entry->cluster_high << 16) | entry->cluster_low;
+            sys_read_next_directory(request);
+            offset = 0;
+            entry = get_directory_entry(request->buf, offset);
+            continue;
+        }
+        if (entry->attribute == 0x20){ //regular file
+            puts(entry->name);
+        }
+        else{
+            puts_color(entry->name, 0x9);
+        }
+        puts("  ");
+        offset += sizeof(struct FAT32DirectoryEntry);
+        entry = get_directory_entry(request->buf, offset);
+    }
+    puts("\n");
 }
 
 // int main(void) {
