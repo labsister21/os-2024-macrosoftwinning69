@@ -5,7 +5,7 @@
 #include "header/stdlib/string.h"
 
 // mendefinisikan state driver keyboard
-static struct KeyboardDriverState keyboard_state = {
+struct KeyboardDriverState keyboard_state = {
     .row = 0,
     .col = 0,
     .press_shift = false,
