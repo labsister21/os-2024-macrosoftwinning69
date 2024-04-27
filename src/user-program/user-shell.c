@@ -20,6 +20,10 @@ void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
     __asm__ volatile("int $0x30");
 }
 
+void sys_mkdir(const char* path) {
+    syscall(9, (uint32_t) path, strlen(path), 0);
+}
+
 // Shell status
 struct ShellStatus {
     uint8_t is_open;
@@ -91,6 +95,15 @@ void ls(struct FAT32DriverRequest *request, char *dirname)
         entry = get_directory_entry(request->buf, offset);
     }
     puts("\n");
+}
+
+// Command untuk membuat direktori bari pada terminal
+void mkdir(char *dirname) {
+    if (strlen(dirname) == 0) {
+        puts("mkdir: missing operand\n");
+        return;
+    }
+    sys_mkdir(dirname);
 }
 
 // int main(void) {
