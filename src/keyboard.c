@@ -43,8 +43,6 @@ const char keyboard_scancode_1_to_ascii_map_shift[256] = {
 void keyboard_isr(void){
     // membaca scancode dari port data keyboard
     uint8_t scancode = in(KEYBOARD_DATA_PORT);
-    // variabel lokal untuk menyimpan karakter ascii yang akan diproses
-    char ascii_char = 0;
 
     // jika keyboard_input_on bernilai true
     if (keyboard_state.keyboard_input_on){
@@ -52,61 +50,110 @@ void keyboard_isr(void){
         if (scancode == 0x2A || scancode == 0x36){ // scancode untuk shift ditekan
             keyboard_state.press_shift = true;
         }
-        else if (scancode == 0xAA || scancode == 0x86){ // scancode saat shift dilepas
+        else if (scancode == 0xAA || scancode == 0xB6){ // scancode saat shift dilepas
             keyboard_state.press_shift = false;
         }
+        else if (scancode == 0x1D) { // ctrl
+            keyboard_state.press_ctrl = true;
+        }
+        else if (scancode == 0x9D) { // ctrl
+            keyboard_state.press_ctrl = false;
+        }
         else if (scancode == 0x1C){ // enter
-            // maju ke baris berikutnya
-            keyboard_state.row++;
-            keyboard_state.col = 0;
-            
-            // update posisi cursor
-            framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+            keyboard_state.keyboard_buffer = '\n';
         }
         else if (scancode == 0x0E){ // backspace
-            // hapus karakter sebelumnya jika buffer tidak kosong
-            if (keyboard_state.col > 0) {
-                keyboard_state.col--;
-                framebuffer_write(keyboard_state.row, keyboard_state.col, ' ', 0x07, 0x00);
-            } else if (keyboard_state.row > 0) { // jika posisi kolom adalah 0
-                // kmbali ke baris sebelumnya dan ke kolom terakhir yang berisi karakter non-spasi
-                keyboard_state.row--;
-                keyboard_state.col = keyboard_state.last_non_space_col[keyboard_state.row] + 1;
-            }
-            // update posisi cursor
-            framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+            keyboard_state.keyboard_buffer = '\b';
         }
         else if (scancode == 0x0F){ // tab
-            // maju ke kolom berikutnya yang merupakan kelipatan 4
-            keyboard_state.col = (keyboard_state.col + 4) & ~3;
-
-            // update posisi cursor
-            framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+            keyboard_state.keyboard_buffer = '\t';
         }
-        else if (keyboard_state.press_shift){ // jika shift ditekan
-            ascii_char = keyboard_scancode_1_to_ascii_map_shift[scancode];
-        }
-        else{ // jika shift tidak ditekan
-            ascii_char = keyboard_scancode_1_to_ascii_map[scancode];
-        }
-
-        // jika ascii_char bukan 0, berarti bukan tombol khusus yang sudah ditangani
-        if (ascii_char != 0) {
-            // menyimpan karakter ascii ke dalam framebuffer
-            framebuffer_write(keyboard_state.row, keyboard_state.col, ascii_char, 0x07, 0x00);
-            // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
-            if (ascii_char != ' ') {
-                keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
+        else {
+            if (keyboard_state.press_shift){ // jika shift ditekan
+                keyboard_state.keyboard_buffer = keyboard_scancode_1_to_ascii_map_shift[scancode];
             }
-            // maju ke kolom berikutnya
-            keyboard_state.col++;
-            // update posisi kursor
-            framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+            else{ // jika shift tidak ditekan
+                keyboard_state.keyboard_buffer = keyboard_scancode_1_to_ascii_map[scancode];
+            }
         }
     } 
     // melakukan pic_ack() ke IRQ1
     pic_ack(1);
 }
+
+// void keyboard_isr(void){
+//     // membaca scancode dari port data keyboard
+//     uint8_t scancode = in(KEYBOARD_DATA_PORT);
+//     // variabel lokal untuk menyimpan karakter ascii yang akan diproses
+//     char ascii_char = 0;
+
+//     // jika keyboard_input_on bernilai true
+//     if (keyboard_state.keyboard_input_on){
+//         // memproses scancode yang diterima ke karakter ascii
+//         if (scancode == 0x2A || scancode == 0x36){ // scancode untuk shift ditekan
+//             keyboard_state.press_shift = true;
+//         }
+//         else if (scancode == 0xAA || scancode == 0xB6){ // scancode saat shift dilepas
+//             keyboard_state.press_shift = false;
+//         }
+//         else if (scancode == 0x1D) { // ctrl
+//             keyboard_state.press_ctrl = true;
+//         }
+//         else if (scancode == 0x9D) { // ctrl
+//             keyboard_state.press_ctrl = false;
+//         }
+//         else if (scancode == 0x1C){ // enter
+//             // maju ke baris berikutnya
+//             keyboard_state.row++;
+//             keyboard_state.col = 0;
+            
+//             // update posisi cursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+//         }
+//         else if (scancode == 0x0E){ // backspace
+//             // hapus karakter sebelumnya jika buffer tidak kosong
+//             if (keyboard_state.col > 0) {
+//                 keyboard_state.col--;
+//                 framebuffer_write(keyboard_state.row, keyboard_state.col, ' ', 0x07, 0x00);
+//             } else if (keyboard_state.row > 0) { // jika posisi kolom adalah 0
+//                 // kmbali ke baris sebelumnya dan ke kolom terakhir yang berisi karakter non-spasi
+//                 keyboard_state.row--;
+//                 keyboard_state.col = keyboard_state.last_non_space_col[keyboard_state.row] + 1;
+//             }
+//             // update posisi cursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+//         }
+//         else if (scancode == 0x0F){ // tab
+//             // maju ke kolom berikutnya yang merupakan kelipatan 4
+//             keyboard_state.col = (keyboard_state.col + 4) & ~3;
+
+//             // update posisi cursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+//         }
+//         else if (keyboard_state.press_shift){ // jika shift ditekan
+//             ascii_char = keyboard_scancode_1_to_ascii_map_shift[scancode];
+//         }
+//         else{ // jika shift tidak ditekan
+//             ascii_char = keyboard_scancode_1_to_ascii_map[scancode];
+//         }
+
+//         // jika ascii_char bukan 0, berarti bukan tombol khusus yang sudah ditangani
+//         if (ascii_char != 0) {
+//             // menyimpan karakter ascii ke dalam framebuffer
+//             framebuffer_write(keyboard_state.row, keyboard_state.col, ascii_char, 0x07, 0x00);
+//             // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
+//             if (ascii_char != ' ') {
+//                 keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
+//             }
+//             // maju ke kolom berikutnya
+//             keyboard_state.col++;
+//             // update posisi kursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+//         }
+//     } 
+//     // melakukan pic_ack() ke IRQ1
+//     pic_ack(1);
+// }
 
 // mengaktifkan pembacaan input keyboard
 void keyboard_state_activate(void){

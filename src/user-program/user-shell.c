@@ -60,14 +60,32 @@ uint32_t strlen(char* buf) {
 int main(void) {
     // Activate keyboard input
     syscall(SYSCALL_ACTIVATE_KEYBOARD, 0, 0, 0);
-    
+
     char* prompt_string = "Macro@OS-2024 ~ ";
     syscall(SYSCALL_PUTS, (uint32_t) prompt_string, strlen(prompt_string), (uint32_t) 0xA);
 
+    // Behavior variables
     char buf;
+    // bool press_shift;
+    // bool press_ctrl;
     while (true) {
-        syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
+        // if (!shell_status.is_open) {
+        //     // Get if user is pressing ctrl
+        //     syscall(SYSCALL_KEYBOARD_PRESS_CTRL, (uint32_t) &press_ctrl, 0, 0);
+            
+        //     // Get input character from keyboard
+        //     syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
+        // }
 
+        // if (press_ctrl) {
+        //     char* out = "Ctrl is pressed\n";
+        //     syscall(SYSCALL_PUTS, (uint32_t) out, strlen(out), 0xA);
+        // }
+        // if (buf != '\0') {
+        //     syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
+        // }
+
+        syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
         if (buf != '\0') {
             syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
         }
