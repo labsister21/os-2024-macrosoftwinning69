@@ -203,5 +203,15 @@ void syscall(struct InterruptFrame frame) {
         case SYSCALL_CLEAR_SCREEN:
             framebuffer_clear();
             break;
+
+        // SYSCALL 13
+        case SYSCALL_SET_CURSOR:
+            framebuffer_set_cursor(
+                frame.cpu.general.ebx,
+                frame.cpu.general.ecx
+            );
+            keyboard_state.row = frame.cpu.general.ebx;
+            keyboard_state.col = frame.cpu.general.ecx;
+            break;
     }
 }

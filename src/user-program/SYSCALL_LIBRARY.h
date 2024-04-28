@@ -11,6 +11,7 @@
 #define SYSCALL_KEYBOARD_PRESS_SHIFT    10
 #define SYSCALL_KEYBOARD_PRESS_CTRL     11
 #define SYSCALL_CLEAR_SCREEN            12
+#define SYSCALL_SET_CURSOR              13
 
 struct SyscallPutsArgs {
     char* buf;
