@@ -213,5 +213,15 @@ void syscall(struct InterruptFrame frame) {
             keyboard_state.row = frame.cpu.general.ebx;
             keyboard_state.col = frame.cpu.general.ecx;
             break;
+
+        // SYSCALL 14
+        case SYSCALL_GET_CURSOR_ROW:
+            *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.row;
+            break;
+
+        // SYSCALL 15
+        case SYSCALL_GET_CURSOR_COL:
+            *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.col;
+            break;
     }
 }

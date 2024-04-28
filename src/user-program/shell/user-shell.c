@@ -108,6 +108,7 @@ int main(void) {
     char buf;
     // bool press_shift;
     bool press_ctrl;
+    uint8_t del_limit;              // Limit for backspace
     struct SyscallPutsArgs putchar_args = {
         .buf = &buf,
         .count = 1,
@@ -143,6 +144,9 @@ int main(void) {
                 // Clear screen and print prompt
                 syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
                 syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
+
+                // Set delete limit
+                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &del_limit, 0, 0);
             }
         } else {
             // Handler if user presses ctrl + s
@@ -168,6 +172,23 @@ int main(void) {
                 prompt_args.buf = "Macrosoft@OS-2024 >> ";
                 syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
 
+                // Set delete limit
+                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &del_limit, 0, 0);
+
+            } else if (buf == '\b') {
+                // Get current col
+                int col;
+                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &col, 0, 0);
+
+                // Check if col is at del limit
+                if (col > del_limit) {
+                    // Print backspace to screen
+                    syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+
+                    // Remove last character from shell input
+                    shell_input.buf[shell_input.len - 1] = '\0';
+                    shell_input.len--;
+                }
             } else if (buf != '\0') {
                 // Print character to screen
                 syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
