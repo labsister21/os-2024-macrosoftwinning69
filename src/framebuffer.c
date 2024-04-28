@@ -12,7 +12,7 @@ uint8_t cursor_col = 0;
 
 void framebuffer_set_cursor(uint8_t r, uint8_t c) {
     // TODO : Implement
-    uint8_t cursor_location = r *FRAMEBUFFER_WIDTH + c;
+    uint16_t cursor_location = r *FRAMEBUFFER_WIDTH + c;
 
     // Atur byte untuk low cursor
     out(CURSOR_PORT_CMD, 0x0F);
