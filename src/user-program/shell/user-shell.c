@@ -1,6 +1,8 @@
 #include <stdint.h>
-#include "../header/filesystem/fat32.h"
-#include "SYSCALL_LIBRARY.h"
+#include "../../header/filesystem/fat32.h"
+#include "../SYSCALL_LIBRARY.h"
+#include "../string.h"
+#include "../utils.h"
 #include "shell-background.h"
 
 // #define BLOCK_COUNT 16
@@ -33,27 +35,6 @@ struct ShellStatus {
 struct ShellStatus shell_status = {
     .is_open = false
 };
-
-// Helper functions
-uint32_t strlen(char* buf) {
-    uint32_t count = 0;
-    while (*buf != '\0') {
-        count++;
-        buf++;
-    }
-    return count;
-}
-
-// bool strcmp(const char* str1, const char* str2, int n) {
-//     int i = 0;
-//     while (*str1 && (*str1 == *str2) && i < n) {
-//         str1++;
-//         str2++;
-//         i++;
-//     }
-    
-//     return i==n;
-// }
 
 // Procedures
 void shell_create_bg() {

@@ -74,17 +74,19 @@ inserter:
 		$(USER_PROGRAM_FOLDER)/external-inserter.c \
 		-o $(OUTPUT_FOLDER)/inserter
 
+SHELL_FOLDER = $(USER_PROGRAM_FOLDER)/shell
+
 user-shell:
 # ASM Flags 
 	@$(ASM) $(AFLAGS) $(USER_PROGRAM_FOLDER)/crt0.s -o crt0.o
 # CC Flags
 	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/string.c -o stdmem.o
-	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/user-shell.c -o user-shell.o
+	@$(CC)  $(CFLAGS) -fno-pie $(SHELL_FOLDER)/user-shell.c -o user-shell.o
 # LIN Flags
-	@$(LIN) -T $(USER_PROGRAM_FOLDER)/user-linker.ld -melf_i386 --oformat=binary \
+	@$(LIN) -T $(SHELL_FOLDER)/user-linker.ld -melf_i386 --oformat=binary \
 		crt0.o user-shell.o stdmem.o -o $(OUTPUT_FOLDER)/shell
 	@echo Linking object shell object files and generate flat binary...
-	@$(LIN) -T $(USER_PROGRAM_FOLDER)/user-linker.ld -melf_i386 --oformat=elf32-i386\
+	@$(LIN) -T $(SHELL_FOLDER)/user-linker.ld -melf_i386 --oformat=elf32-i386\
 		crt0.o user-shell.o stdmem.o -o $(OUTPUT_FOLDER)/shell_elf
 
 # Misc
