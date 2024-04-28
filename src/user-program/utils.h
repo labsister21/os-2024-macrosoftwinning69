@@ -7,6 +7,16 @@ struct StringN {
     uint32_t len;
 };
 
+struct StringNList_Node {
+    struct StringN data;
+    struct StringNList_Node* next;
+};
+
+struct StringNList {
+    struct StringNList_Node* head;
+    struct StringNList_Node* tail;
+};
+
 // Helper functions
 uint32_t strlen(char* buf) {
     uint32_t count = 0;
@@ -17,17 +27,25 @@ uint32_t strlen(char* buf) {
     return count;
 }
 
-bool strcmp(const char* str1, const char* str2, int n) {
-    int i = 0;
-    while (*str1 && (*str1 == *str2) && i < n) {
+bool strcmp(char* str1, char* str2) {
+    // Get lengths of str1 and str2
+    uint32_t len1 = strlen(str1);
+    uint32_t len2 = strlen(str2);
+
+    // If lengths are not equal, return false
+    if (len1 != len2) return false;
+    
+    // Compare each character
+    while (*str1) {
+        if (*str1 != *str2) return false;
         str1++;
         str2++;
-        i++;
     }
     
-    return i==n;
+    return true;
 }
 
+// StringN operations
 void stringn_create(struct StringN* str) {
     memset(str->buf, '\0', 256);
     str->len = 0;

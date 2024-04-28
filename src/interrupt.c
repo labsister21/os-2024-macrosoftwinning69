@@ -75,15 +75,11 @@ void puts(struct SyscallPutsArgs args) {
     uint32_t fg_color = args.fg_color;
     uint32_t bg_color = args.bg_color;
     
-    // Jika input hanya 1 karakter
-    if (count == 1) {
+    while (count && *buf != '\0') {
         if (*buf == '\n') {     // enter
             // maju ke baris berikutnya
             keyboard_state.row++;
             keyboard_state.col = 0;
-            
-            // update posisi cursor
-            // framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
 
         } else if (*buf == '\b') {  // backspace
             // hapus karakter sebelumnya jika buffer tidak kosong
@@ -95,35 +91,22 @@ void puts(struct SyscallPutsArgs args) {
                 keyboard_state.row--;
                 keyboard_state.col = keyboard_state.last_non_space_col[keyboard_state.row] + 1;
             }
-            // update posisi cursor
-            // framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
-
         } else if (*buf == '\t') {  // tab
             // maju ke kolom berikutnya yang merupakan kelipatan 4
             keyboard_state.col = (keyboard_state.col + 4) & ~3;
-
-            // update posisi cursor
-            // framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
-
         } else {
             // menyimpan karakter ascii ke dalam framebuffer
-            framebuffer_write(keyboard_state.row, keyboard_state.col, *buf, 0x07, 0x00);
+            framebuffer_write(keyboard_state.row, keyboard_state.col++, *buf, fg_color, bg_color);
+
             // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
             if (*buf != ' ') {
                 keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
             }
-            // maju ke kolom berikutnya
-            keyboard_state.col++;
-            // update posisi kursor
-            // framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
         }
-    } else {
-        while (count && *buf != '\0') {
-            framebuffer_write(keyboard_state.row, keyboard_state.col++, *buf, fg_color, bg_color);
-            buf++;
-            count--;
-        }
+        buf++;
+        count--;
     }
+
     framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
 }
 

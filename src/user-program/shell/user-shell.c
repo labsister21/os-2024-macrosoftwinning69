@@ -11,10 +11,25 @@
 // static char curDirName[300] = "/\0";
 // static struct FAT32DirectoryTable rootTable;
 
+// Shell properties
 #define SHELL_WINDOW_UPPER_HEIGHT 0
 #define SHELL_WINDOW_LOWER_HEIGHT 24
 #define SHELL_WINDOW_LEFT_WIDTH 0
 #define SHELL_WINDOW_RIGHT_WIDTH 79
+
+// Shell commands
+#define SHELL_CD "cd"
+#define SHELL_LS "ls"
+#define SHELL_MKDIR "mkdir"
+#define SHELL_CAT "cat"
+#define SHELL_CP "cp"
+#define SHELL_RM "rm"
+#define SHELL_MV "mv"
+#define SHELL_FIND "find"
+
+#define SHELL_CLEAR "clear"
+
+#define SHELL_OKEGAS "okegas"
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -34,10 +49,11 @@ void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
 // Shell status
 struct ShellStatus {
     bool is_open;
+    uint8_t del_limit;          // Limit for backspace
 };
 
 struct ShellStatus shell_status = {
-    .is_open = false
+    .is_open = false  
 };
 
 // Procedures
@@ -96,6 +112,63 @@ void shell_create_bg() {
     syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
 }
 
+void shell_reset_cli() {
+    struct SyscallPutsArgs prompt_args = {
+        .buf = "Macrosoft@OS-2024 >> ",
+        .count = strlen(prompt_args.buf),
+        .fg_color = 0xA,
+        .bg_color = 0x0
+    };
+
+    // Clear screen and print prompt
+    syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
+    syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+    syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
+
+    // Set delete limit
+    syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
+}
+
+void shell_input_handler(struct StringN input) {
+    char* command = input.buf;
+
+    if (strcmp(command, SHELL_CD)) {
+
+    } else if (strcmp(command, SHELL_LS)) {
+
+    } else if (strcmp(command, SHELL_MKDIR)) {
+
+    } else if (strcmp(command, SHELL_CAT)) {
+
+    } else if (strcmp(command, SHELL_CP)) {
+
+    } else if (strcmp(command, SHELL_RM)) {
+
+    } else if (strcmp(command, SHELL_MV)) {
+
+    } else if (strcmp(command, SHELL_FIND)) {
+
+    } else if (strcmp(command, SHELL_CLEAR)) {
+        shell_reset_cli();
+    } else if (strcmp(command, SHELL_OKEGAS)) {
+        struct SyscallPutsArgs args = {
+            .buf = "TABRAK-TABRAK MASUK\nRAPPER KAMPUNG TABRAK MASUK\nMESKI JAUH JARAK PANDANG\nCOBA SEDIKIT MENGAMUK\nKU CIPTAKAN LIRIK DAN BEAT\nSECEPAT KILAT TAPI TAK SEMPIT\nBERDIRI TEGAR WALAUPUN SULIT\nTRA MAMPU BERSAING SILAHKAN PAMIT\nOK GAS-OK GAS\nTAMBAH DUA TORANG GAS",
+            .count = strlen(args.buf),
+            .fg_color = 0xE,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+    } else {
+        struct SyscallPutsArgs args = {
+            .buf = "Unknown command! Please enter another command.",
+            .count = strlen(args.buf),
+            .fg_color = 0xC,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+    }
+}
+
 // Main shell program
 int main(void) {
     // Activate keyboard input
@@ -108,7 +181,6 @@ int main(void) {
     char buf;
     // bool press_shift;
     bool press_ctrl;
-    uint8_t del_limit;              // Limit for backspace
     struct SyscallPutsArgs putchar_args = {
         .buf = &buf,
         .count = 1,
@@ -140,13 +212,9 @@ int main(void) {
             if (press_ctrl && buf == 's') {
                 // Set shell to open
                 shell_status.is_open = true;
-                
-                // Clear screen and print prompt
-                syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
-                syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
 
-                // Set delete limit
-                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &del_limit, 0, 0);
+                // Clear screen and print prompt
+                shell_reset_cli();
             }
         } else {
             // Handler if user presses ctrl + s
@@ -161,19 +229,23 @@ int main(void) {
                 syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
 
                 // Handle shell input
+                shell_input_handler(shell_input);
+
+                // Print extra newline
+                if (!strcmp(shell_input.buf, SHELL_CLEAR)) {
+                    syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+                    syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+
+                    // Re-print prompt
+                    prompt_args.buf = "Macrosoft@OS-2024 >> ";
+                    syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
+
+                    // Set delete limit
+                    syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
+                }
 
                 // Reset shell input
                 stringn_create(&shell_input);
-
-                // Print extra newline
-                syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
-
-                // Re-print prompt
-                prompt_args.buf = "Macrosoft@OS-2024 >> ";
-                syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
-
-                // Set delete limit
-                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &del_limit, 0, 0);
 
             } else if (buf == '\b') {
                 // Get current col
@@ -181,7 +253,7 @@ int main(void) {
                 syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &col, 0, 0);
 
                 // Check if col is at del limit
-                if (col > del_limit) {
+                if (col > shell_status.del_limit) {
                     // Get rightmost character
                     char c = shell_input.buf[shell_input.len - 1];
 
