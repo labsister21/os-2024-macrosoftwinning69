@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include "../../header/filesystem/fat32.h"
 #include "../SYSCALL_LIBRARY.h"
-#include "../string.h"
 #include "../utils.h"
 #include "shell-background.h"
 
@@ -11,6 +10,11 @@
 // static struct FAT32DirectoryTable curTable;
 // static char curDirName[300] = "/\0";
 // static struct FAT32DirectoryTable rootTable;
+
+#define SHELL_WINDOW_UPPER_HEIGHT 0
+#define SHELL_WINDOW_LOWER_HEIGHT 24
+#define SHELL_WINDOW_LEFT_WIDTH 0
+#define SHELL_WINDOW_RIGHT_WIDTH 79
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -87,6 +91,9 @@ void shell_create_bg() {
         .col = 12
     };
     syscall(SYSCALL_PUTS_AT, (uint32_t) &welcome3, 0, 0);
+
+    // Set cursor   
+    syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
 }
 
 // Main shell program
@@ -96,15 +103,6 @@ int main(void) {
 
     // Create shell background
     shell_create_bg();
-    
-    // // Write shell prompt
-    // struct SyscallPutsArgs args = {
-    //     .buf = "Macro@OS-2024 ~ ",
-    //     .count = strlen(args.buf),
-    //     .fg_color = 0xA,
-    //     .bg_color = 0x0
-    // };
-    // syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
 
     // Behavior variables
     char buf;
@@ -116,7 +114,18 @@ int main(void) {
         .fg_color = 0x7,
         .bg_color = 0
     };
+    struct SyscallPutsArgs prompt_args = {
+        .buf = "Macrosoft@OS-2024 >> ",
+        .count = strlen(prompt_args.buf),
+        .fg_color = 0xA,
+        .bg_color = 0x0
+    };
 
+    // String for storing shell input
+    struct StringN shell_input;
+    stringn_create(&shell_input);
+
+    // Main program loop
     while (true) {
         // Get if user is pressing ctrl
         syscall(SYSCALL_KEYBOARD_PRESS_CTRL, (uint32_t) &press_ctrl, 0, 0);
@@ -133,13 +142,6 @@ int main(void) {
                 
                 // Clear screen and print prompt
                 syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
-                
-                struct SyscallPutsArgs prompt_args = {
-                    .buf = "Macrosoft@OS-2024 >> ",
-                    .count = strlen(prompt_args.buf),
-                    .fg_color = 0xA,
-                    .bg_color = 0x0
-                };
                 syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
             }
         } else {
@@ -150,8 +152,28 @@ int main(void) {
 
                 // Create background
                 shell_create_bg();
-            } else if (buf != '\0') {
+            } else if (buf == '\n')  {
+                // Print newline to screen
                 syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+
+                // Handle shell input
+
+                // Reset shell input
+                stringn_create(&shell_input);
+
+                // Print extra newline
+                syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+
+                // Re-print prompt
+                prompt_args.buf = "Macrosoft@OS-2024 >> ";
+                syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
+
+            } else if (buf != '\0') {
+                // Print character to screen
+                syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+
+                // Append character to shell input
+                stringn_appendchar(&shell_input, buf);
             }
         }
     }
