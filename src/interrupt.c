@@ -5,6 +5,7 @@
 #include "header/filesystem/fat32.h"
 #include "header/text/framebuffer.h"
 #include "header/kernel-entrypoint.h"
+#include "user-program/SYSCALL_LIBRARY.h"
 
 void io_wait(void) {
     out(0x80, 0);
@@ -77,6 +78,39 @@ void puts(char* buf, uint32_t count, uint32_t color) {
 }
 
 void syscall(struct InterruptFrame frame) {
+    // switch (frame.cpu.general.eax) {
+    //     case SYSCALL_READ:
+    //         *((int8_t*) frame.cpu.general.ecx) = read(
+    //             *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+    //         );
+    //         break;
+
+    //     case SYSCALL_GETCHAR:
+    //         keyboard_state_activate();
+
+    //         get_keyboard_buffer((char*) frame.cpu.general.ebx);
+    //         break;
+
+    //     case SYSCALL_PUTCHAR:
+    //         puts(
+    //             (char*) frame.cpu.general.ebx,
+    //             1,
+    //             frame.cpu.general.ecx
+    //         );
+    //         break;
+
+    //     case SYSCALL_PUTS:
+    //         puts(
+    //             (char*) frame.cpu.general.ebx, 
+    //             frame.cpu.general.ecx, 
+    //             frame.cpu.general.edx
+    //         );
+    //         break;
+
+    //     case SYSCALL_ACTIVATE_KEYBOARD:
+    //         keyboard_state_activate();
+    //         break;
+    // }
     if (frame.cpu.general.eax == 0) {
         *((int8_t*) frame.cpu.general.ecx) = read(
             *(struct FAT32DriverRequest*) frame.cpu.general.ebx

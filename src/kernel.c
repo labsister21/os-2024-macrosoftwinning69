@@ -40,9 +40,9 @@ void create_bg() {
 
 void kernel_setup(void) {
     // Test paging
-    // paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x600000);
+    paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x600000);
     // paging_free_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x700000);
-    // *((uint8_t*) 0x500000) = 1;
+    *((uint8_t*) 0x500000) = 1;
 
     // Load GDT
     load_gdt(&_gdt_gdtr);
@@ -68,7 +68,6 @@ void kernel_setup(void) {
 
     // Allocate first 4 MiB virtual memory
     paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0);
-    paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x400000);
 
     // Write shell into memory
     struct FAT32DriverRequest request = {
@@ -81,20 +80,9 @@ void kernel_setup(void) {
     int8_t xd = read(request);
     xd++;
 
-    // Write home screen to memory
-    struct FAT32DriverRequest hsc_request = {
-        .buf                    = (uint8_t*) 0x400000,
-        .name                   = "home-scr",
-        .parent_cluster_number  = ROOT_CLUSTER_NUMBER,
-        .buffer_size            = 0x100000
-    };
-    int8_t lol = read(hsc_request);
-    lol++;
-
     // Set TSS $esp pointer and jump into shell 
     set_tss_kernel_current_stack();
-    // kernel_execute_user_program((uint8_t*) 0x400000);
-    kernel_execute_user_program((uint8_t*) 0);
+    kernel_execute_user_program((uint8_t*) 0x0);
 
     // while (true);
 

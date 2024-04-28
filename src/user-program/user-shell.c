@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "../header/filesystem/fat32.h"
 
-#define BLOCK_COUNT 16
+// #define BLOCK_COUNT 16
 
 // static uint32_t currenDir = ROOT_CLUSTER_NUMBER;
 // static struct FAT32DirectoryTable curTable;
@@ -42,16 +42,16 @@ uint32_t strlen(char* buf) {
     return count;
 }
 
-bool strcmp(const char* str1, const char* str2, int n) {
-    int i = 0;
-    while (*str1 && (*str1 == *str2) && i < n) {
-        str1++;
-        str2++;
-        i++;
-    }
+// bool strcmp(const char* str1, const char* str2, int n) {
+//     int i = 0;
+//     while (*str1 && (*str1 == *str2) && i < n) {
+//         str1++;
+//         str2++;
+//         i++;
+//     }
     
-    return i==n;
-}
+//     return i==n;
+// }
 
 
 
@@ -65,9 +65,6 @@ int main(void) {
         syscall(4, (uint32_t) &buf, 0, 0);
 
         if (buf != '\0') {
-            if (buf == 'p') {
-                syscall(7, 0x400000, 0, 0);
-            }
             syscall(5, (uint32_t) &buf, 0x7, 0);
         }
     }
