@@ -182,12 +182,21 @@ int main(void) {
 
                 // Check if col is at del limit
                 if (col > del_limit) {
-                    // Print backspace to screen
-                    syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+                    // Get rightmost character
+                    char c = shell_input.buf[shell_input.len - 1];
 
-                    // Remove last character from shell input
-                    shell_input.buf[shell_input.len - 1] = '\0';
-                    shell_input.len--;
+                    // Implement backspace with ctrl
+                    do {
+                        // Print backspace to screen
+                        syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+
+                        // Remove last character from shell input
+                        shell_input.buf[shell_input.len - 1] = '\0';
+                        shell_input.len--;
+
+                        // Get new character
+                        c = shell_input.buf[shell_input.len - 1];
+                    } while (c != ' ' && shell_input.len > 0 && press_ctrl);
                 }
             } else if (buf != '\0') {
                 // Print character to screen
