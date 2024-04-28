@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "../header/filesystem/fat32.h"
 #include "SYSCALL_LIBRARY.h"
+#include "shell-background.h"
 
 // #define BLOCK_COUNT 16
 
@@ -26,11 +27,11 @@ void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
 
 // Shell status
 struct ShellStatus {
-    uint8_t is_open;
+    bool is_open;
 };
 
 struct ShellStatus shell_status = {
-    .is_open = 0
+    .is_open = false
 };
 
 // Helper functions
@@ -54,43 +55,125 @@ uint32_t strlen(char* buf) {
 //     return i==n;
 // }
 
+// Procedures
+void shell_create_bg() {
+    // Set cursor   
+    syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
 
+    // Draw background art
+    for (int i = 0; i < 25; i++) {
+        for (int j = 0; j < 80; j++) {
+            struct SyscallPutsAtArgs args = {
+                .buf = " ",
+                .count = 1,
+                .fg_color = 0x0,
+                .bg_color = bg[i][j],
+                .row = i,
+                .col = j
+            };
+
+            syscall(SYSCALL_PUTS_AT, (uint32_t) &args, 0, 0);
+        }
+    }
+
+    // Write welcome message
+    struct SyscallPutsAtArgs welcome1 = {
+        .buf = "Hello, User!",
+        .count = strlen(welcome1.buf),
+        .fg_color = 0x0,
+        .bg_color = 0x2,
+        .row = 10,
+        .col = 8
+    };
+    syscall(SYSCALL_PUTS_AT, (uint32_t) &welcome1, 0, 0);
+
+    struct SyscallPutsAtArgs welcome2 = {
+        .buf = "Welcome to Macrosoft Winning OS!",
+        .count = strlen(welcome2.buf),
+        .fg_color = 0x0,
+        .bg_color = 0x2,
+        .row = 11,
+        .col = 11
+    };
+    syscall(SYSCALL_PUTS_AT, (uint32_t) &welcome2, 0, 0);
+
+    struct SyscallPutsAtArgs welcome3 = {
+        .buf = "Press Ctrl + S to open the Shell Command Line Interface.",
+        .count = strlen(welcome3.buf),
+        .fg_color = 0xF,
+        .bg_color = 0x4,
+        .row = 15,
+        .col = 12
+    };
+    syscall(SYSCALL_PUTS_AT, (uint32_t) &welcome3, 0, 0);
+}
 
 // Main shell program
 int main(void) {
     // Activate keyboard input
     syscall(SYSCALL_ACTIVATE_KEYBOARD, 0, 0, 0);
 
-    char* prompt_string = "Macro@OS-2024 ~ ";
-    syscall(SYSCALL_PUTS, (uint32_t) prompt_string, strlen(prompt_string), (uint32_t) 0xA);
+    // Create shell background
+    shell_create_bg();
+    
+    // // Write shell prompt
+    // struct SyscallPutsArgs args = {
+    //     .buf = "Macro@OS-2024 ~ ",
+    //     .count = strlen(args.buf),
+    //     .fg_color = 0xA,
+    //     .bg_color = 0x0
+    // };
+    // syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
 
     // Behavior variables
     char buf;
     // bool press_shift;
-    // bool press_ctrl;
+    bool press_ctrl;
+    struct SyscallPutsArgs putchar_args = {
+        .buf = &buf,
+        .count = 1,
+        .fg_color = 0x7,
+        .bg_color = 0
+    };
+
     while (true) {
-        // if (!shell_status.is_open) {
-        //     // Get if user is pressing ctrl
-        //     syscall(SYSCALL_KEYBOARD_PRESS_CTRL, (uint32_t) &press_ctrl, 0, 0);
-            
-        //     // Get input character from keyboard
-        //     syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
-        // }
+        // Get if user is pressing ctrl
+        syscall(SYSCALL_KEYBOARD_PRESS_CTRL, (uint32_t) &press_ctrl, 0, 0);
 
-        // if (press_ctrl) {
-        //     char* out = "Ctrl is pressed\n";
-        //     syscall(SYSCALL_PUTS, (uint32_t) out, strlen(out), 0xA);
-        // }
-        // if (buf != '\0') {
-        //     syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
-        // }
-
+        // Get currently pressed key
         syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
-        if (buf != '\0') {
-            syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
+
+        // Conditional logic depending on whether shell is open or not
+        if (!shell_status.is_open) {
+            // Handler if user presses ctrl + s
+            if (press_ctrl && buf == 's') {
+                // Set shell to open
+                shell_status.is_open = true;
+                
+                // Clear screen and print prompt
+                syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
+                
+                struct SyscallPutsArgs prompt_args = {
+                    .buf = "Macrosoft@OS-2024 >> ",
+                    .count = strlen(prompt_args.buf),
+                    .fg_color = 0xA,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
+            }
+        } else {
+            // Handler if user presses ctrl + s
+            if (press_ctrl && buf == 's') {
+                // Set shell to open
+                shell_status.is_open = false;
+
+                // Create background
+                shell_create_bg();
+            } else if (buf != '\0') {
+                syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+            }
         }
     }
-
     return 0;
 }
 

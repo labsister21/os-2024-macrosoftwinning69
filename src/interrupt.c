@@ -68,7 +68,13 @@ void main_interrupt_handler(struct InterruptFrame frame) {
     }
 }
 
-void puts(char* buf, uint32_t count, uint32_t color) {
+void puts(struct SyscallPutsArgs args) {
+    // Get arguments
+    char* buf = args.buf;
+    uint32_t count = args.count;
+    uint32_t fg_color = args.fg_color;
+    uint32_t bg_color = args.bg_color;
+    
     // Jika input hanya 1 karakter
     if (count == 1) {
         if (*buf == '\n') {     // enter
@@ -98,7 +104,7 @@ void puts(char* buf, uint32_t count, uint32_t color) {
 
             // update posisi cursor
             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
-            
+
         } else {
             // menyimpan karakter ascii ke dalam framebuffer
             framebuffer_write(keyboard_state.row, keyboard_state.col, *buf, 0x07, 0x00);
@@ -113,11 +119,30 @@ void puts(char* buf, uint32_t count, uint32_t color) {
         }
     } else {
         while (count && *buf != '\0') {
-            framebuffer_write(0, keyboard_state.col++, *buf, color, 0);
+            framebuffer_write(0, keyboard_state.col++, *buf, fg_color, bg_color);
             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
             buf++;
             count--;
         }
+    }
+}
+
+void puts_at(struct SyscallPutsAtArgs args) {
+    // Get arguments
+    char* buf = args.buf;
+    uint32_t count = args.count;
+    uint32_t fg_color = args.fg_color;
+    uint32_t bg_color = args.bg_color;
+    uint8_t row = args.row;
+    uint8_t col = args.col;
+
+    // Print to screen
+    while (count && *buf != '\0') {
+        framebuffer_write(row, col, *buf, fg_color, bg_color);
+
+        buf++;
+        col++;
+        count--;
     }
 }
 
@@ -139,35 +164,54 @@ void syscall(struct InterruptFrame frame) {
 
         // SYSCALL 5
         case SYSCALL_PUTCHAR:
-            puts(
-                (char*) frame.cpu.general.ebx,
-                1,
-                frame.cpu.general.ecx
-            );
+            struct SyscallPutsArgs* pointer = (struct SyscallPutsArgs*) frame.cpu.general.ebx;
+            pointer->count = 1;
+
+            puts(*pointer);
             break;
 
         // SYSCALL 6
         case SYSCALL_PUTS:
-            puts(
-                (char*) frame.cpu.general.ebx, 
-                frame.cpu.general.ecx, 
-                frame.cpu.general.edx
-            );
+            struct SyscallPutsArgs* pointer_puts = (struct SyscallPutsArgs*) frame.cpu.general.ebx;
+
+            puts(*pointer_puts);
             break;
 
         // SYSCALL 7
+        case SYSCALL_PUTS_AT:
+            struct SyscallPutsAtArgs* pointer_puts_at = (struct SyscallPutsAtArgs*) frame.cpu.general.ebx;
+
+            puts_at(*pointer_puts_at);
+            break;
+
+        // SYSCALL 8
         case SYSCALL_ACTIVATE_KEYBOARD:
             keyboard_state_activate();
             break;
 
-        // SYSCALL 8
+        // SYSCALL 9
         case SYSCALL_DEACTIVATE_KEYBOARD:
             keyboard_state_deactivate();
             break;
 
-        // SYSCALL 10
+        // SYSCALL 11
         case SYSCALL_KEYBOARD_PRESS_CTRL:
             *((bool*) frame.cpu.general.ebx) = keyboard_state.press_ctrl;
+            break;
+
+        // SYSCALL 12
+        case SYSCALL_CLEAR_SCREEN:
+            framebuffer_clear();
+            break;
+
+        // SYSCALL 13
+        case SYSCALL_SET_CURSOR:
+            framebuffer_set_cursor(
+                frame.cpu.general.ebx,
+                frame.cpu.general.ecx
+            );
+            keyboard_state.row = frame.cpu.general.ebx;
+            keyboard_state.col = frame.cpu.general.ecx;
             break;
     }
 }
