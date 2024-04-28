@@ -9,7 +9,7 @@ SOURCE_FOLDER = src
 USER_PROGRAM_FOLDER = src/user-program
 OUTPUT_FOLDER = bin
 ISO_NAME      = OS2024
-DISK_NAME     = shell-test
+DISK_NAME     = sample-image-copy
 
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
@@ -80,7 +80,6 @@ user-shell:
 # CC Flags
 	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/string.c -o stdmem.o
 	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/user-shell.c -o user-shell.o
-	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/home-screen.c -o home-screen.o
 # LIN Flags
 	@$(LIN) -T $(USER_PROGRAM_FOLDER)/user-linker.ld -melf_i386 --oformat=binary \
 		crt0.o user-shell.o stdmem.o -o $(OUTPUT_FOLDER)/shell
@@ -88,18 +87,12 @@ user-shell:
 	@$(LIN) -T $(USER_PROGRAM_FOLDER)/user-linker.ld -melf_i386 --oformat=elf32-i386\
 		crt0.o user-shell.o stdmem.o -o $(OUTPUT_FOLDER)/shell_elf
 
-	@$(LIN) -T $(USER_PROGRAM_FOLDER)/home-screen-linker.ld -melf_i386 --oformat=binary \
-	crt0.o home-screen.o stdmem.o -o $(OUTPUT_FOLDER)/home-scr
-	@echo Linking object home-scr object files and generate flat binary...
-	@$(LIN) -T $(USER_PROGRAM_FOLDER)/home-screen-linker.ld -melf_i386 --oformat=elf32-i386\
-		crt0.o home-screen.o stdmem.o -o $(OUTPUT_FOLDER)/home-scr_elf
 # Misc
 	@echo Linking object shell object files and generate ELF32 for debugging...
 	@size --target=binary bin/shell
-	@size --target=binary bin/home-scr
 	@rm -f *.o
 
 
 insert-shell: inserter user-shell
 	@echo Inserting shell into root directory...
-		@cd $(OUTPUT_FOLDER); ./inserter shell 2 $(DISK_NAME).bin; ./inserter home-scr 2 $(DISK_NAME).bin
+		@cd $(OUTPUT_FOLDER); ./inserter shell 2 $(DISK_NAME).bin

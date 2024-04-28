@@ -67,6 +67,9 @@ int main(int argc, char *argv[]) {
     };
     sscanf(argv[2], "%u",  &request.parent_cluster_number);
     sscanf(argv[1], "%8s", request.name);
+    
+    // Delete file/folder if already exist
+    delete(request);
     int retcode = write(request);
     switch (retcode) {
         case 0:  puts("Write success"); break;
