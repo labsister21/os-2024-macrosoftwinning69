@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "../header/filesystem/fat32.h"
+#include "SYSCALL_LIBRARY.h"
 
 // #define BLOCK_COUNT 16
 
@@ -57,15 +58,18 @@ uint32_t strlen(char* buf) {
 
 // Main shell program
 int main(void) {
+    // Activate keyboard input
+    syscall(SYSCALL_ACTIVATE_KEYBOARD, 0, 0, 0);
+    
     char* prompt_string = "Macro@OS-2024 ~ ";
-    syscall(6, (uint32_t) prompt_string, strlen(prompt_string), (uint32_t) 0xA);
+    syscall(SYSCALL_PUTS, (uint32_t) prompt_string, strlen(prompt_string), (uint32_t) 0xA);
 
     char buf;
     while (true) {
-        syscall(4, (uint32_t) &buf, 0, 0);
+        syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
 
         if (buf != '\0') {
-            syscall(5, (uint32_t) &buf, 0x7, 0);
+            syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
         }
     }
 

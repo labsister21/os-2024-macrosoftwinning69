@@ -78,63 +78,37 @@ void puts(char* buf, uint32_t count, uint32_t color) {
 }
 
 void syscall(struct InterruptFrame frame) {
-    // switch (frame.cpu.general.eax) {
-    //     case SYSCALL_READ:
-    //         *((int8_t*) frame.cpu.general.ecx) = read(
-    //             *(struct FAT32DriverRequest*) frame.cpu.general.ebx
-    //         );
-    //         break;
+    switch (frame.cpu.general.eax) {
+        case SYSCALL_READ:
+            *((int8_t*) frame.cpu.general.ecx) = read(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
 
-    //     case SYSCALL_GETCHAR:
-    //         keyboard_state_activate();
+        case SYSCALL_GETCHAR:
+            // keyboard_state_activate();
 
-    //         get_keyboard_buffer((char*) frame.cpu.general.ebx);
-    //         break;
+            get_keyboard_buffer((char*) frame.cpu.general.ebx);
+            break;
 
-    //     case SYSCALL_PUTCHAR:
-    //         puts(
-    //             (char*) frame.cpu.general.ebx,
-    //             1,
-    //             frame.cpu.general.ecx
-    //         );
-    //         break;
+        case SYSCALL_PUTCHAR:
+            puts(
+                (char*) frame.cpu.general.ebx,
+                1,
+                frame.cpu.general.ecx
+            );
+            break;
 
-    //     case SYSCALL_PUTS:
-    //         puts(
-    //             (char*) frame.cpu.general.ebx, 
-    //             frame.cpu.general.ecx, 
-    //             frame.cpu.general.edx
-    //         );
-    //         break;
+        case SYSCALL_PUTS:
+            puts(
+                (char*) frame.cpu.general.ebx, 
+                frame.cpu.general.ecx, 
+                frame.cpu.general.edx
+            );
+            break;
 
-    //     case SYSCALL_ACTIVATE_KEYBOARD:
-    //         keyboard_state_activate();
-    //         break;
-    // }
-    if (frame.cpu.general.eax == 0) {
-        *((int8_t*) frame.cpu.general.ecx) = read(
-            *(struct FAT32DriverRequest*) frame.cpu.general.ebx
-         );
-    } else if (frame.cpu.general.eax == 4) {
-        keyboard_state_activate();
-        
-        // TODO: getchar()
-        get_keyboard_buffer((char*) frame.cpu.general.ebx);
-
-    } else if (frame.cpu.general.eax == 5)  {
-        puts(
-            (char*) frame.cpu.general.ebx,
-            1,
-            frame.cpu.general.ecx
-        );
-    } else if (frame.cpu.general.eax == 6) {
-        puts(
-            (char*) frame.cpu.general.ebx, 
-            frame.cpu.general.ecx, 
-            frame.cpu.general.edx
-        ); // Assuming puts() exist in kernel
-    } else if (frame.cpu.general.eax == 7) {
-        set_tss_kernel_current_stack();
-        kernel_execute_user_program((uint32_t*) frame.cpu.general.ebx);
+        case SYSCALL_ACTIVATE_KEYBOARD:
+            keyboard_state_activate();
+            break;
     }
 }
