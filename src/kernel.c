@@ -53,11 +53,11 @@ void kernel_setup(void) {
     activate_keyboard_interrupt();
 
     // Framebuffer operations
-    framebuffer_clear();
-    create_bg();
-    write_string(10, 8, "Hello, User!", 0, 0x2);
-    write_string(11, 11, "Welcome to Macrosoft Winning OS!", 0, 0x2);
-    framebuffer_set_cursor(0, 0);
+    // framebuffer_clear();
+    // create_bg();
+    // write_string(10, 8, "Hello, User!", 0, 0x2);
+    // write_string(11, 11, "Welcome to Macrosoft Winning OS!", 0, 0x2);
+    // framebuffer_set_cursor(0, 0);
 
     // Initialize filesystem FAT32
     initialize_filesystem_fat32();

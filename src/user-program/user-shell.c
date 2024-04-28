@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "../header/filesystem/fat32.h"
 #include "SYSCALL_LIBRARY.h"
+#include "shell-background.h"
 
 // #define BLOCK_COUNT 16
 
@@ -54,17 +55,37 @@ uint32_t strlen(char* buf) {
 //     return i==n;
 // }
 
+// Procedures
+void shell_create_bg() {
+    for (int i = 0; i < 25; i++) {
+        for (int j = 0; j < 80; j++) {
+            struct SyscallPutsAtArgs args = {
+                .buf = " ",
+                .count = 1,
+                .fg_color = 0x0,
+                .bg_color = bg[i][j],
+                .row = i,
+                .col = j
+            };
 
+            syscall(SYSCALL_PUTS_AT, (uint32_t) &args, 0, 0);
+        }
+    }
+}
 
 // Main shell program
 int main(void) {
     // Activate keyboard input
     syscall(SYSCALL_ACTIVATE_KEYBOARD, 0, 0, 0);
 
+    // Create shell background
+    shell_create_bg();
+    
+    // Write shell prompt
     struct SyscallPutsArgs args = {
-        .buf = "Macro@OS-2024 ~ hhahahahaha",
+        .buf = "Macro@OS-2024 ~ ",
         .count = strlen(args.buf),
-        .fg_color = 0x8,
+        .fg_color = 0xA,
         .bg_color = 0x0
     };
 
@@ -83,14 +104,14 @@ int main(void) {
     while (true) {
         // Get if user is pressing ctrl
         // syscall(SYSCALL_KEYBOARD_PRESS_CTRL, (uint32_t) &press_ctrl, 0, 0);
-        
+
         // Get input character from keyboard
         syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
-
+        
         if (buf != '\0') {
             syscall(SYSCALL_PUTCHAR, (uint32_t) &puts_args, 0, 0);
         }
-        
+
         // // Conditional logic depending on whether shell is open or not
         // if (!shell_status.is_open) {
         //     // Handler if user press ctrl + s
@@ -111,10 +132,10 @@ int main(void) {
         //         // Set shell to open
         //         shell_status.is_open = false;
 
-        //         framebuffer_clear();
-        //         create_bg();
-        //         write_string(10, 8, "Hello, User!", 0, 0x2);
-        //         write_string(11, 11, "Welcome to Macrosoft Winning OS!", 0, 0x2);
+        // framebuffer_clear();
+        // create_bg();
+        // write_string(10, 8, "Hello, User!", 0, 0x2);
+        // write_string(11, 11, "Welcome to Macrosoft Winning OS!", 0, 0x2);
         //         framebuffer_set_cursor(0, 0);
         //     } else if (buf != '\0') {
         //         syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
