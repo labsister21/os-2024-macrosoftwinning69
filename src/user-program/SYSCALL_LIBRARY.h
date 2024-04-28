@@ -9,3 +9,11 @@
 #define SYSCALL_DEACTIVATE_KEYBOARD     8
 #define SYSCALL_KEYBOARD_PRESS_SHIFT    9
 #define SYSCALL_KEYBOARD_PRESS_CTRL     10
+#define SYSCALL_CLEAR_SCREEN            11
+
+struct SyscallPutsArgs {
+    char* buf;
+    uint32_t count;
+    uint32_t fg_color;
+    uint32_t bg_color;
+};

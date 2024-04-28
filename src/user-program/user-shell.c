@@ -61,34 +61,66 @@ int main(void) {
     // Activate keyboard input
     syscall(SYSCALL_ACTIVATE_KEYBOARD, 0, 0, 0);
 
-    char* prompt_string = "Macro@OS-2024 ~ ";
-    syscall(SYSCALL_PUTS, (uint32_t) prompt_string, strlen(prompt_string), (uint32_t) 0xA);
+    struct SyscallPutsArgs args = {
+        .buf = "Macro@OS-2024 ~ hhahahahaha",
+        .count = strlen(args.buf),
+        .fg_color = 0x8,
+        .bg_color = 0x0
+    };
+
+    syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
 
     // Behavior variables
     char buf;
     // bool press_shift;
     // bool press_ctrl;
+    struct SyscallPutsArgs puts_args = {
+        .buf = &buf,
+        .count = 1,
+        .fg_color = 0x7,
+        .bg_color = 0
+    };
     while (true) {
-        // if (!shell_status.is_open) {
-        //     // Get if user is pressing ctrl
-        //     syscall(SYSCALL_KEYBOARD_PRESS_CTRL, (uint32_t) &press_ctrl, 0, 0);
-            
-        //     // Get input character from keyboard
-        //     syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
-        // }
-
-        // if (press_ctrl) {
-        //     char* out = "Ctrl is pressed\n";
-        //     syscall(SYSCALL_PUTS, (uint32_t) out, strlen(out), 0xA);
-        // }
-        // if (buf != '\0') {
-        //     syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
-        // }
-
+        // Get if user is pressing ctrl
+        // syscall(SYSCALL_KEYBOARD_PRESS_CTRL, (uint32_t) &press_ctrl, 0, 0);
+        
+        // Get input character from keyboard
         syscall(SYSCALL_GETCHAR, (uint32_t) &buf, 0, 0);
+
         if (buf != '\0') {
-            syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
+            syscall(SYSCALL_PUTCHAR, (uint32_t) &puts_args, 0, 0);
         }
+        
+        // // Conditional logic depending on whether shell is open or not
+        // if (!shell_status.is_open) {
+        //     // Handler if user press ctrl + s
+        //     if (press_ctrl && buf == 's') {
+        //         // Set shell to open
+        //         shell_status.is_open = true;
+                
+        //         // Clear screen and print prompt
+        //         syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
+                
+        //         char* prompt_string = "Macro@OS-2024 ~ ";
+
+        //         syscall(SYSCALL_PUTS, (uint32_t) prompt_string, strlen(prompt_string), (uint32_t) 0xA);
+        //     }
+        // } else {
+        //     // Handler if user press ctrl + s
+        //     if (press_ctrl && buf == 's') {
+        //         // Set shell to open
+        //         shell_status.is_open = false;
+
+        //         framebuffer_clear();
+        //         create_bg();
+        //         write_string(10, 8, "Hello, User!", 0, 0x2);
+        //         write_string(11, 11, "Welcome to Macrosoft Winning OS!", 0, 0x2);
+        //         framebuffer_set_cursor(0, 0);
+        //     } else if (buf != '\0') {
+        //         syscall(SYSCALL_PUTCHAR, (uint32_t) &buf, 0x7, 0);
+        //     }
+        // }
+
     }
 
     return 0;

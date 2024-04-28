@@ -68,7 +68,65 @@ void main_interrupt_handler(struct InterruptFrame frame) {
     }
 }
 
-void puts(char* buf, uint32_t count, uint32_t color) {
+// void puts(char* buf, uint32_t count, uint32_t color) {
+//     // Jika input hanya 1 karakter
+//     if (count == 1) {
+//         if (*buf == '\n') {     // enter
+//             // maju ke baris berikutnya
+//             keyboard_state.row++;
+//             keyboard_state.col = 0;
+            
+//             // update posisi cursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+
+//         } else if (*buf == '\b') {  // backspace
+//             // hapus karakter sebelumnya jika buffer tidak kosong
+//             if (keyboard_state.col > 0) {
+//                 keyboard_state.col--;
+//                 framebuffer_write(keyboard_state.row, keyboard_state.col, ' ', 0x07, 0x00);
+//             } else if (keyboard_state.row > 0) { // jika posisi kolom adalah 0
+//                 // kembali ke baris sebelumnya dan ke kolom terakhir yang berisi karakter non-spasi
+//                 keyboard_state.row--;
+//                 keyboard_state.col = keyboard_state.last_non_space_col[keyboard_state.row] + 1;
+//             }
+//             // update posisi cursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+
+//         } else if (*buf == '\t') {  // tab
+//             // maju ke kolom berikutnya yang merupakan kelipatan 4
+//             keyboard_state.col = (keyboard_state.col + 4) & ~3;
+
+//             // update posisi cursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+
+//         } else {
+//             // menyimpan karakter ascii ke dalam framebuffer
+//             framebuffer_write(keyboard_state.row, keyboard_state.col, *buf, 0x07, 0x00);
+//             // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
+//             if (*buf != ' ') {
+//                 keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
+//             }
+//             // maju ke kolom berikutnya
+//             keyboard_state.col++;
+//             // update posisi kursor
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+//         }
+//     } else {
+//         while (count && *buf != '\0') {
+//             framebuffer_write(0, keyboard_state.col++, *buf, color, 0);
+//             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
+//             buf++;
+//             count--;
+//         }
+//     }
+// }
+void puts(struct SyscallPutsArgs args) {
+    // Get arguments
+    char* buf = args.buf;
+    uint32_t count = args.count;
+    uint32_t fg_color = args.fg_color;
+    uint32_t bg_color = args.bg_color;
+    
     // Jika input hanya 1 karakter
     if (count == 1) {
         if (*buf == '\n') {     // enter
@@ -98,7 +156,7 @@ void puts(char* buf, uint32_t count, uint32_t color) {
 
             // update posisi cursor
             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
-            
+
         } else {
             // menyimpan karakter ascii ke dalam framebuffer
             framebuffer_write(keyboard_state.row, keyboard_state.col, *buf, 0x07, 0x00);
@@ -113,7 +171,7 @@ void puts(char* buf, uint32_t count, uint32_t color) {
         }
     } else {
         while (count && *buf != '\0') {
-            framebuffer_write(0, keyboard_state.col++, *buf, color, 0);
+            framebuffer_write(0, keyboard_state.col++, *buf, fg_color, bg_color);
             framebuffer_set_cursor(keyboard_state.row, keyboard_state.col);
             buf++;
             count--;
@@ -139,20 +197,17 @@ void syscall(struct InterruptFrame frame) {
 
         // SYSCALL 5
         case SYSCALL_PUTCHAR:
-            puts(
-                (char*) frame.cpu.general.ebx,
-                1,
-                frame.cpu.general.ecx
-            );
+            struct SyscallPutsArgs* pointer = (struct SyscallPutsArgs*) frame.cpu.general.ebx;
+            pointer->count = 1;
+
+            puts(*pointer);
             break;
 
         // SYSCALL 6
         case SYSCALL_PUTS:
-            puts(
-                (char*) frame.cpu.general.ebx, 
-                frame.cpu.general.ecx, 
-                frame.cpu.general.edx
-            );
+            struct SyscallPutsArgs* pointer_puts = (struct SyscallPutsArgs*) frame.cpu.general.ebx;
+
+            puts(*pointer_puts);
             break;
 
         // SYSCALL 7
@@ -168,6 +223,11 @@ void syscall(struct InterruptFrame frame) {
         // SYSCALL 10
         case SYSCALL_KEYBOARD_PRESS_CTRL:
             *((bool*) frame.cpu.general.ebx) = keyboard_state.press_ctrl;
+            break;
+
+        // SYSCALL 11
+        case SYSCALL_CLEAR_SCREEN:
+            framebuffer_clear();
             break;
     }
 }
