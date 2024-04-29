@@ -4,13 +4,6 @@
 #include "../utils.h"
 #include "shell-background.h"
 
-// #define BLOCK_COUNT 16
-
-// static uint32_t currenDir = ROOT_CLUSTER_NUMBER;
-// static struct FAT32DirectoryTable curTable;
-// static char curDirName[300] = "/\0";
-// static struct FAT32DirectoryTable rootTable;
-
 // Filesystem variables
 struct FAT32DirectoryTable currentDir;
 char currentDirName[8];
@@ -198,6 +191,37 @@ void shell_print_prompt() {
     syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
 }
 
+// ls command
+void ls(){
+    struct FAT32DirectoryTable table = currentDir;
+    for (int i = 2; i < 64; i++) {
+        // Check if entry is empty
+        struct FAT32DirectoryEntry entry = table.table[i];
+        if (entry.name[0] == '\0') {
+            break;
+        }
+
+        // Print entry name
+        struct SyscallPutsArgs args = {
+            .buf = entry.name,
+            .count = strlen(args.buf),
+            .fg_color = 0x7,
+            .bg_color = 0x0
+        };
+
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+        // Print space between entries
+        struct SyscallPutsArgs args2 = {
+            .buf = " ",
+            .count = strlen(args2.buf),
+            .fg_color = 0x7,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+    }
+}
+
 void shell_input_handler(struct StringN input) {
     // Get 0th argument
     struct StringN arg0;
@@ -222,7 +246,7 @@ void shell_input_handler(struct StringN input) {
     if (strcmp(command, SHELL_CD)) {
 
     } else if (strcmp(command, SHELL_LS)) {
-
+        ls();
     } else if (strcmp(command, SHELL_MKDIR)) {
 
     } else if (strcmp(command, SHELL_CAT)) {
@@ -382,44 +406,6 @@ int main(void) {
     return 0;
 }
 
-// void ls(){
-//     uint32_t retcode;
-//     struct FAT32DriverRequest request2 = {
-//             .buf                   = &curTable,
-//             .name                  = "\0\0\0\0\0\0\0\0",
-//             .ext                   = "\0\0\0",
-//             .parent_cluster_number = currenDir,
-//             .buffer_size           = 0,
-//     };
-//     for(int i = 0; i < slen(curTable.table[0].name); i++){
-//         request2.name[i] = curTable.table[0].name[i];
-//     }
-//     syscall(1, (uint32_t) &request2, (uint32_t) &retcode, 0);
-//     struct FAT32DirectoryTable table = curTable;
-//     for(int i = 1 ; i < 64 ; i++){
-//         if(table.table[i].attribute || table.table[i].cluster_high || table.table[i].cluster_low){
-//             int temp_int = 0;
-//             if(slen(table.table[i].name) > 8){
-//                 temp_int = 8;
-//             } else {
-//                 temp_int = slen(table.table[i].name);
-//             }
-//             syscall(5, (uint32_t) table.table[i].name, temp_int, 0xf);
-//             temp_int = 0;
-//             if(slen(table.table[i].ext) > 3){
-//                 temp_int = 3;
-//             } else {
-//                 temp_int = slen(table.table[i].ext);
-//             }
-//             if(temp_int > 0){
-//                 syscall(5, (uint32_t) ".", 1, 0xf);
-//             }
-//             syscall(5, (uint32_t) table.table[i].ext, temp_int, 0xf);
-//             syscall(5, (uint32_t) "\n", 1, 0xf);
-//         }
-//     }
-// }
-
 // // Command untuk membuat direktori bari pada terminal
 // void mkdir(char *dirname) {
 //     if (strlen(dirname) == 0) {
@@ -427,272 +413,4 @@ int main(void) {
 //         return;
 //     }
 //     sys_mkdir(dirname);
-// }
-
-// void cd(char* filename){
-//     // check if ..
-//     if (strcmp("..\0", filename, 2)){
-//         if (currenDir == ROOT_CLUSTER_NUMBER){
-//             syscall(5, (uint32_t) "Already at root directory\n", 27, 0xf);
-//             return;
-//         }
-//         // currenDir = (uint32_t)curTable.table[0].cluster_high << 16 | curTable.table[0].cluster_low; // target cluster number
-    
-//         // start from root so curtable is set to root table
-//         struct FAT32DirectoryTable table = rootTable;
-
-//         // iterate from root to parent
-//         char prev[300] = "\0";
-//         for(int i = 0 ; i < 300 ; i++){
-//             prev[i] = '\0';
-//         }
-//         prev[0] = '/';
-//         int i = 0;
-//         char pre[300] = "\0";
-//         char post[300] = "\0";
-//         // initialize post as curDirName
-//         for (int i = 0 ; i < slen(curDirName); i++){
-//             post[i] = curDirName[i];
-//         }
-//         while(!clusterExist(table, currenDir)){
-//             // save current directory name
-//             char tempChar[300] = "\0";
-//             for (int j = 0 ; j < 300 ; j++){
-//                 tempChar[j] = '\0';
-//             }
-//             for (int j = 0 ; j < slen(post); j++){
-//                 tempChar[j] = post[j];
-//             }
-//             splitPath(tempChar, pre, post);
-//             i = 0;
-//             while(pre[i]!='\0'){
-//                 prev[slen(prev)] = pre[i];
-//                 i++;
-//             }
-//             prev[slen(prev)] = '/';
-
-//             // split pre into name and ext
-//             char name[9] = "\0\0\0\0\0\0\0\0\0";
-//             char ext[4] = "\0\0\0\0";
-//             readfname(pre, name, ext);
-//             uint8_t retcode = 0;
-
-//             // int temp_int = 1;
-//             // while(!(strcmp(curTable.table[temp_int].name, name, slen(name)) && strcmp(curTable.table[temp_int].ext, ext, slen(ext)))){
-//             //     temp_int++;
-//             // }
-//             struct FAT32DriverRequest tempRequest = {
-//                 .buf                    = &table,
-//                 .name                   = "\0\0\0\0\0\0\0\0",
-//                 .ext                    = "\0\0\0",
-//                 .parent_cluster_number  = (table.table[0].cluster_high << 16 | table.table[0].cluster_low),
-//                 .buffer_size            = 0,
-//             };
-
-//             // clear tempRequest name and ext
-//             for (int j = 0; j < 8; j++){
-//                 tempRequest.name[j] = '\0';
-//             }
-//             for (int j = 0; j < 3; j++){
-//                 tempRequest.ext[j] = '\0';
-//             }
-
-//             // set it to name and ext
-//             int temp_int = 0;
-//             if (slen(name) > 8){
-//                 temp_int = 8;
-//             } else {
-//                 temp_int = slen(name);
-//             }
-//             for (int j = 0; j < temp_int; j++){
-//                 tempRequest.name[j] = name[j];
-//             }
-//             if (slen(ext) > 3){
-//                 temp_int = 3;
-//             } else {
-//                 temp_int = slen(ext);
-//             }
-//             for (int j = 0; j < temp_int; j++){
-//                 tempRequest.ext[j] = ext[j];
-//             }
-//             syscall(1, (uint32_t) &tempRequest, (uint32_t)&retcode, 0);
-//             if (retcode != 0){
-//                 syscall(5, (uint32_t) "Directory not found\n", 21, 0xf);
-//                 return;
-//             }
-//         }
-//         // save current directory name
-//         for(int j = 0 ; j < 300 ; j++){
-//             curDirName[j] = '\0';
-//         }
-//         curDirName[0] = '/';
-//         for(int j = 1 ; j < slen(prev) && slen(prev) > 1 ; j++){
-//             curDirName[j] = prev[j];
-//         }
-//         curTable = table;
-//         currenDir = (table.table[0].cluster_high << 16 | table.table[0].cluster_low);
-
-//         return;
-//     } else if (filename[0] == '/'){
-//         // start from root so curtable is set to root table
-//         struct FAT32DirectoryTable table = curTable;
-
-//         // iterate from root to parent
-//         char temp[300] = "\0";
-//         temp[0] = '/';
-//         char pre[300] = "\0";
-//         char post[300] = "\0";
-//         // initialize post as curDirName
-//         for (int i = 1 ; i < slen(curDirName); i++){
-//             temp[i] = curDirName[i];
-//         }
-//         temp[slen(curDirName)] = '\0';
-//         for (int i = 0 ; i < slen(filename); i++){
-//             post[i] = filename[i];
-//         }
-//         while(slen(post)-1!=0){
-//             // save current directory name
-//             char tempChar[300] = "\0";
-//             for (int j = 0 ; j < 300 ; j++){
-//                 tempChar[j] = '\0';
-//             }
-//             for (int j = 0 ; j < slen(post); j++){
-//                 tempChar[j] = post[j];
-//             }
-//             splitPath(tempChar, pre, post);
-//             /* i = 0;
-//             int tint = slen(temp);
-//             while(pre[i]!='\0'){
-//                 temp[tint] = pre[i];
-//                 i++;
-//                 tint++;
-//             }
-//             temp[tint] = '/';
-//             temp[tint+1] = '\0'; */
-
-//             // split pre into name and ext
-//             char name[9] = "\0\0\0\0\0\0\0\0\0";
-//             char ext[4] = "\0\0\0\0";
-//             readfname(pre, name, ext);
-//             uint8_t retcode = 0;
-
-//             // int temp_int = 1;
-//             // while(!(strcmp(curTable.table[temp_int].name, name, slen(name)) && strcmp(curTable.table[temp_int].ext, ext, slen(ext)))){
-//             //     temp_int++;
-//             // }
-//             struct FAT32DriverRequest tempRequest = {
-//                 .buf                    = &table,
-//                 .name                   = "\0\0\0\0\0\0\0\0",
-//                 .ext                    = "\0\0\0",
-//                 .parent_cluster_number  = (table.table[0].cluster_high << 16 | table.table[0].cluster_low),
-//                 .buffer_size            = 0,
-//             };
-
-//             // clear tempRequest name and ext
-//             for (int j = 0; j < 8; j++){
-//                 tempRequest.name[j] = '\0';
-//             }
-//             for (int j = 0; j < 3; j++){
-//                 tempRequest.ext[j] = '\0';
-//             }
-
-//             // set it to name and ext
-//             int temp_int = 0;
-//             if (slen(name) > 8){
-//                 temp_int = 8;
-//             } else {
-//                 temp_int = slen(name);
-//             }
-//             for (int j = 0; j < temp_int; j++){
-//                 tempRequest.name[j] = name[j];
-//             }
-//             if (slen(ext) > 3){
-//                 temp_int = 3;
-//             } else {
-//                 temp_int = slen(ext);
-//             }
-//             for (int j = 0; j < temp_int; j++){
-//                 tempRequest.ext[j] = ext[j];
-//             }
-//             syscall(1, (uint32_t) &tempRequest, (uint32_t)&retcode, 0);
-//             if (retcode != 0){
-//                 syscall(5, (uint32_t) "Directory not found\n", 21, 0xf);
-//                 return;
-//             }
-//             for (int i = 0; i < slen(pre); i++){
-//                 temp[slen(temp)] = pre[i];
-//             }
-//             temp[slen(temp)] = '/';
-//         }
-//         // save current directory name
-//         for(int j = 0 ; j < 300 ; j++){
-//             curDirName[j] = '\0';
-//         }
-//         for(int j = 0 ; j < slen(temp) ; j++){
-//             curDirName[j] = temp[j];
-//         }
-//         curTable = table;
-//         currenDir = (table.table[0].cluster_high << 16 | table.table[0].cluster_low);
-
-//         return;
-//     }
-
-//     char name[9] = "\0\0\0\0\0\0\0\0\0";
-//     char ext[4] = "\0\0\0\0";
-//     struct FAT32DirectoryTable table = curTable;
-//     readfname(filename, (char *)name, (char *)ext);
-//     struct FAT32DriverRequest request = {
-//             .buf = &table,
-//             .name = "\0\0\0\0\0\0\0\0",
-//             .ext = "\0\0\0",
-//             .parent_cluster_number = currenDir,
-//             .buffer_size = 0
-//     };
-//     int32_t retcode = 0;
-//     for(int i = 0; i < slen(name); i++){
-//         request.name[i] = name[i];
-//     }
-//     for(int i = 0; i < slen(ext); i++){
-//         request.ext[i] = ext[i];
-//     }
-//     syscall(1, (uint32_t) &request, (uint32_t) &retcode, 0);
-//     if(retcode != 0){
-//         syscall(5, (uint32_t) "No such directory\n", 18, 0xf);
-//         return;
-//     }
-//     if(!strcmp(curDirName + 1,name,slen(name))){
-//         for (int i = 0; i < slen(name); i++){
-//             curDirName[slen(curDirName)] = name[i];
-//         }
-//         curDirName[slen(curDirName)] = '/';
-//     }
-    
-//     curTable = table;
-//     currenDir = (table.table[0].cluster_high << 16 | table.table[0].cluster_low);
-// }
-
-// int main(void) {
-//     struct ClusterBuffer      cl      = {0};
-//     struct FAT32DriverRequest request = {
-//         .buf                   = &cl,
-//         .name                  = "kano",
-//         .ext                   = "\0\0\0",
-//         .parent_cluster_number = ROOT_CLUSTER_NUMBER,
-//         .buffer_size           = CLUSTER_SIZE * 3,
-//     };
-//     int32_t retcode;
-//     syscall(0, (uint32_t) &request, (uint32_t) &retcode, 0);
-//     if (retcode == 0)
-//         syscall(6, (uint32_t) "owo\n", 4, 0xF);
-
-//     char buf;
-//     while (true) {
-//         syscall(4, (uint32_t) &buf, 0, 0);
-
-//         if (buf != '\0') {
-//             syscall(5, (uint32_t) &buf, 0xF, 0);
-//         }
-//     }
-
-//     return 0;
 // }
