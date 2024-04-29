@@ -165,7 +165,7 @@ void shell_print_prompt() {
     // Prompt handler
     // OS Title
     struct SyscallPutsArgs prompt_args = {
-        .buf = "Macrosoft@OS-2024 ",
+        .buf = "Macrosoft@OS-2024 [",
         .count = strlen(prompt_args.buf),
         .fg_color = 0xA,
         .bg_color = 0x0
@@ -187,7 +187,7 @@ void shell_print_prompt() {
 
     // User input prompt
     struct SyscallPutsArgs prompt_args3 = {
-        .buf = " >> ",
+        .buf = "] >> ",
         .count = strlen(prompt_args3.buf),
         .fg_color = 0xA,
         .bg_color = 0x0
