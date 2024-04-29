@@ -10,7 +10,13 @@ struct KeyboardDriverState keyboard_state = {
     .col = 0,
     .press_shift = false,
     .press_ctrl = false,
-    .last_non_space_col = {0}
+    .last_non_space_col = {0},
+    .keyboard_buffer_ext = EXT_BUFFER_NONE,
+
+    .up_limit = 0,
+    .down_limit = FRAMEBUFFER_HEIGHT - 1,
+    .left_limit = 0,
+    .right_limit = FRAMEBUFFER_WIDTH - 1
 };
 
 const char keyboard_scancode_1_to_ascii_map[256] = {
@@ -46,6 +52,19 @@ void keyboard_isr(void){
 
     // jika keyboard_input_on bernilai true
     if (keyboard_state.keyboard_input_on){
+
+        // Process extended scancodes
+        if (scancode == EXTENDED_SCANCODE_BYTE) {
+            keyboard_state.read_extended_mode = true;
+            return;
+        } else if (keyboard_state.read_extended_mode) {
+            if (scancode == EXT_SCANCODE_UP) keyboard_state.keyboard_buffer_ext = EXT_BUFFER_UP;
+            else if (scancode == EXT_SCANCODE_DOWN) keyboard_state.keyboard_buffer_ext = EXT_BUFFER_DOWN;
+            else if (scancode == EXT_SCANCODE_LEFT) keyboard_state.keyboard_buffer_ext = EXT_BUFFER_LEFT;
+            else if (scancode == EXT_SCANCODE_RIGHT) keyboard_state.keyboard_buffer_ext = EXT_BUFFER_RIGHT;
+            else keyboard_state.keyboard_buffer_ext = EXT_BUFFER_NONE;
+        }
+
         // memproses scancode yang diterima ke karakter ascii
         if (scancode == 0x2A || scancode == 0x36){ // scancode untuk shift ditekan
             keyboard_state.press_shift = true;
@@ -172,4 +191,12 @@ void get_keyboard_buffer(char *buf){
 
     // mengosongkan buffer keyboard
     keyboard_state.keyboard_buffer = 0;
+}
+
+void get_keyboard_buffer_ext(char *buf){
+    //mengcopy isi buffer keyboard ke buf
+    *buf = keyboard_state.keyboard_buffer_ext;
+
+    // mengosongkan buffer keyboard
+    keyboard_state.keyboard_buffer_ext = EXT_BUFFER_NONE;
 }

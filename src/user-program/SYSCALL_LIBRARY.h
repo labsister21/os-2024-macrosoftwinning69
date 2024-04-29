@@ -1,3 +1,6 @@
+#ifndef __SYSCALL_LIBRARY_H
+#define __SYSCALL_LIBRARY_H
+
 #define SYSCALL_READ                    0
 #define SYSCALL_READ_DIRECTORY          1
 #define SYSCALL_WRITE                   2
@@ -15,6 +18,14 @@
 #define SYSCALL_GET_CURSOR_ROW          14
 #define SYSCALL_GET_CURSOR_COL          15
 
+// Extended scancode handling
+#define EXT_BUFFER_NONE               0
+#define EXT_BUFFER_UP                 1
+#define EXT_BUFFER_DOWN               2
+#define EXT_BUFFER_LEFT               3
+#define EXT_BUFFER_RIGHT              4
+
+// Helper structs
 struct SyscallPutsArgs {
     char* buf;
     uint32_t count;
@@ -30,3 +41,5 @@ struct SyscallPutsAtArgs {
     uint8_t row;
     uint8_t col;
 };
+
+#endif

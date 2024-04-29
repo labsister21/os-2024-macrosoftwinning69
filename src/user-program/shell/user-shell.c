@@ -50,10 +50,12 @@ void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
 struct ShellStatus {
     bool is_open;
     uint8_t del_limit;          // Limit for backspace
+    uint8_t shell_row;
 };
 
 struct ShellStatus shell_status = {
-    .is_open = false  
+    .is_open = false,
+    .shell_row = 0
 };
 
 // Procedures
@@ -169,6 +171,32 @@ void shell_input_handler(struct StringN input) {
     }
 }
 
+// void shell_handle_arrow_keys(uint8_t upper, uint8_t lower, uint8_t left, uint8_t right, uint8_t direction) {
+//     // Get current cursor position
+//     uint8_t row;
+//     uint8_t col;
+//     syscall(SYSCALL_GET_CURSOR_ROW, &row, 0, 0);
+//     syscall(SYSCALL_GET_CURSOR_COL, &col, 0, 0);
+
+//     // Move cursor
+//     switch (direction) {
+//         case EXT_BUFFER_UP:
+        
+//         case EXT_BUFFER_DOWN:
+
+//         case EXT_BUFFER_LEFT:
+
+//         case EXT_BUFFER_RIGHT:
+//             // Return if cursor at bottom right corner
+//             if (col == right && row == lower) return;
+
+//             // If cursor at end of line
+//             if (col == right) {
+
+//             }
+//     }
+// }
+
 // Main shell program
 int main(void) {
     // Activate keyboard input
@@ -244,16 +272,23 @@ int main(void) {
                     syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
                 }
 
+                // Set shell row
+                uint8_t row;
+                syscall(SYSCALL_GET_CURSOR_ROW, (uint32_t) &row, 0, 0);
+                shell_status.shell_row = row;
+
                 // Reset shell input
                 stringn_create(&shell_input);
 
             } else if (buf == '\b') {
                 // Get current col
                 int col;
+                int row;
                 syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &col, 0, 0);
+                syscall(SYSCALL_GET_CURSOR_ROW, (uint32_t) &row, 0, 0);
 
                 // Check if col is at del limit
-                if (col > shell_status.del_limit) {
+                if (col > shell_status.del_limit || row > shell_status.shell_row) {
                     // Get rightmost character
                     char c = shell_input.buf[shell_input.len - 1];
 
@@ -261,14 +296,16 @@ int main(void) {
                     do {
                         // Print backspace to screen
                         syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
+                        syscall(SYSCALL_GET_CURSOR_ROW, (uint32_t) &row, 0, 0);
+                        syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &col, 0, 0);
 
                         // Remove last character from shell input
                         shell_input.buf[shell_input.len - 1] = '\0';
-                        shell_input.len--;
+                        if (shell_input.len > 0) shell_input.len--;
 
                         // Get new character
                         c = shell_input.buf[shell_input.len - 1];
-                    } while (c != ' ' && shell_input.len > 0 && press_ctrl);
+                    } while (c != ' ' && (col > shell_status.del_limit || row > shell_status.shell_row) && press_ctrl);
                 }
             } else if (buf != '\0') {
                 // Print character to screen

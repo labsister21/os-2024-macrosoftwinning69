@@ -77,16 +77,18 @@ void puts(struct SyscallPutsArgs args) {
     
     while (count && *buf != '\0') {
         if (*buf == '\n') {     // enter
-            // maju ke baris berikutnya
-            keyboard_state.row++;
-            keyboard_state.col = 0;
+            if (!(keyboard_state.row == keyboard_state.down_limit)) {
+                // maju ke baris berikutnya
+                keyboard_state.row++;
+                keyboard_state.col = keyboard_state.left_limit;
+            }
 
         } else if (*buf == '\b') {  // backspace
             // hapus karakter sebelumnya jika buffer tidak kosong
-            if (keyboard_state.col > 0) {
+            if (keyboard_state.col > keyboard_state.left_limit) {
                 keyboard_state.col--;
                 framebuffer_write(keyboard_state.row, keyboard_state.col, ' ', 0x07, 0x00);
-            } else if (keyboard_state.row > 0) { // jika posisi kolom adalah 0
+            } else if (keyboard_state.row > keyboard_state.up_limit) { // jika posisi kolom adalah 0
                 // kembali ke baris sebelumnya dan ke kolom terakhir yang berisi karakter non-spasi
                 keyboard_state.row--;
                 keyboard_state.col = keyboard_state.last_non_space_col[keyboard_state.row] + 1;
@@ -96,12 +98,21 @@ void puts(struct SyscallPutsArgs args) {
             keyboard_state.col = (keyboard_state.col + 4) & ~3;
         } else {
             // menyimpan karakter ascii ke dalam framebuffer
-            framebuffer_write(keyboard_state.row, keyboard_state.col++, *buf, fg_color, bg_color);
-
-            // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
-            if (*buf != ' ') {
-                keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
+            framebuffer_write(keyboard_state.row, keyboard_state.col, *buf, fg_color, bg_color);
+            keyboard_state.last_non_space_col[keyboard_state.row] = keyboard_state.col;
+            
+            // Update col
+            if (!(keyboard_state.row == keyboard_state.down_limit && keyboard_state.col == keyboard_state.right_limit)) {
+                if (keyboard_state.col == keyboard_state.right_limit) {
+                    keyboard_state.row++;
+                    keyboard_state.col = keyboard_state.left_limit;
+                } else {
+                    keyboard_state.col++;
+                }
             }
+            // jika karakter bukan spasi, perbarui posisi kolom terakhir yang berisi karakter non-spasi
+            // if (*buf != ' ') {
+            // }
         }
         buf++;
         count--;
