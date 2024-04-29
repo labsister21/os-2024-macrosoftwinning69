@@ -11,6 +11,11 @@
 // static char curDirName[300] = "/\0";
 // static struct FAT32DirectoryTable rootTable;
 
+// Filesystem variables
+struct FAT32DirectoryTable currentDir;
+char currentDirName[8];
+struct StringN currentDirPath;
+
 // Shell properties
 #define SHELL_WINDOW_UPPER_HEIGHT 0
 #define SHELL_WINDOW_LOWER_HEIGHT 24
@@ -59,6 +64,45 @@ struct ShellStatus shell_status = {
 };
 
 // Procedures
+struct StringN create_path_recursive(uint32_t cluster) {
+    if (cluster == ROOT_CLUSTER_NUMBER) {
+        struct StringN path;
+        stringn_create(&path);
+        stringn_appendstr(&path, "./");
+        return path;
+    }
+    // Create StringN for current folder
+    struct StringN currdir;
+    stringn_create(&currdir);
+
+    // Get current folder name
+    struct FAT32DirectoryTable dir_table;
+    syscall(SYSCALL_READ_CLUSTER, (uint32_t) &dir_table, cluster, 0);
+
+    struct FAT32DirectoryEntry dir_entry = dir_table.table[0];
+
+    // Append folder name to currdir
+    stringn_appendstr(&currdir, dir_entry.name);
+    stringn_appendchar(&currdir, '/');
+
+    // Get parent folder cluster
+    struct FAT32DirectoryEntry parent_entry = dir_table.table[1];
+    uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
+
+    // Get parent folder path
+    struct StringN parent_path = create_path_recursive(parent_cluster);
+    stringn_appendstr(&parent_path, currdir.buf);
+
+    return parent_path;
+}
+
+void create_path() {
+    struct FAT32DirectoryEntry curr_entry = currentDir.table[0];
+    uint32_t cluster = (curr_entry.cluster_high << 16) | curr_entry.cluster_low;
+
+    currentDirPath = create_path_recursive(cluster);
+}
+
 void shell_create_bg() {
     // Set cursor   
     syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
@@ -114,18 +158,41 @@ void shell_create_bg() {
     syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
 }
 
-void shell_reset_cli() {
+void shell_print_prompt() {
+    // Get path and save to currentDirPath
+    create_path();
+ 
+    // Prompt handler
+    // OS Title
     struct SyscallPutsArgs prompt_args = {
-        .buf = "Macrosoft@OS-2024 >> ",
+        .buf = "Macrosoft@OS-2024 ",
         .count = strlen(prompt_args.buf),
         .fg_color = 0xA,
         .bg_color = 0x0
     };
-
-    // Clear screen and print prompt
-    syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
-    syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
     syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
+
+    // Current directory path
+    struct StringN prompt;
+    stringn_create(&prompt);
+    stringn_appendstr(&prompt, currentDirPath.buf);
+
+    struct SyscallPutsArgs prompt_args2 = {
+        .buf = prompt.buf,
+        .count = strlen(prompt_args2.buf),
+        .fg_color = 0x9,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &prompt_args2, 0, 0);
+
+    // User input prompt
+    struct SyscallPutsArgs prompt_args3 = {
+        .buf = " >> ",
+        .count = strlen(prompt_args3.buf),
+        .fg_color = 0xA,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &prompt_args3, 0, 0);
 
     // Set delete limit
     syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
@@ -151,7 +218,9 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_FIND)) {
 
     } else if (strcmp(command, SHELL_CLEAR)) {
-        shell_reset_cli();
+        syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
+        syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+        shell_print_prompt();
     } else if (strcmp(command, SHELL_OKEGAS)) {
         struct SyscallPutsArgs args = {
             .buf = "TABRAK-TABRAK MASUK\nRAPPER KAMPUNG TABRAK MASUK\nMESKI JAUH JARAK PANDANG\nCOBA SEDIKIT MENGAMUK\nKU CIPTAKAN LIRIK DAN BEAT\nSECEPAT KILAT TAPI TAK SEMPIT\nBERDIRI TEGAR WALAUPUN SULIT\nTRA MAMPU BERSAING SILAHKAN PAMIT\nOK GAS-OK GAS\nTAMBAH DUA TORANG GAS",
@@ -171,32 +240,6 @@ void shell_input_handler(struct StringN input) {
     }
 }
 
-// void shell_handle_arrow_keys(uint8_t upper, uint8_t lower, uint8_t left, uint8_t right, uint8_t direction) {
-//     // Get current cursor position
-//     uint8_t row;
-//     uint8_t col;
-//     syscall(SYSCALL_GET_CURSOR_ROW, &row, 0, 0);
-//     syscall(SYSCALL_GET_CURSOR_COL, &col, 0, 0);
-
-//     // Move cursor
-//     switch (direction) {
-//         case EXT_BUFFER_UP:
-        
-//         case EXT_BUFFER_DOWN:
-
-//         case EXT_BUFFER_LEFT:
-
-//         case EXT_BUFFER_RIGHT:
-//             // Return if cursor at bottom right corner
-//             if (col == right && row == lower) return;
-
-//             // If cursor at end of line
-//             if (col == right) {
-
-//             }
-//     }
-// }
-
 // Main shell program
 int main(void) {
     // Activate keyboard input
@@ -204,6 +247,16 @@ int main(void) {
 
     // Create shell background
     shell_create_bg();
+
+    // Load root directory
+    struct FAT32DriverRequest request = {
+        .buf = &currentDir,
+        .name = "root",
+        .ext = "\0\0\0",
+        .parent_cluster_number = ROOT_CLUSTER_NUMBER,
+        .buffer_size = sizeof(struct FAT32DirectoryTable)
+    };
+    syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
 
     // Behavior variables
     char buf;
@@ -214,12 +267,6 @@ int main(void) {
         .count = 1,
         .fg_color = 0x7,
         .bg_color = 0
-    };
-    struct SyscallPutsArgs prompt_args = {
-        .buf = "Macrosoft@OS-2024 >> ",
-        .count = strlen(prompt_args.buf),
-        .fg_color = 0xA,
-        .bg_color = 0x0
     };
 
     // String for storing shell input
@@ -242,7 +289,9 @@ int main(void) {
                 shell_status.is_open = true;
 
                 // Clear screen and print prompt
-                shell_reset_cli();
+                syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
+                syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+                shell_print_prompt();
             }
         } else {
             // Handler if user presses ctrl + s
@@ -265,11 +314,7 @@ int main(void) {
                     syscall(SYSCALL_PUTCHAR, (uint32_t) &putchar_args, 0, 0);
 
                     // Re-print prompt
-                    prompt_args.buf = "Macrosoft@OS-2024 >> ";
-                    syscall(SYSCALL_PUTS, (uint32_t) &prompt_args, 0, 0);
-
-                    // Set delete limit
-                    syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
+                    shell_print_prompt();
                 }
 
                 // Set shell row

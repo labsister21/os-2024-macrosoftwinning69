@@ -149,6 +149,13 @@ void syscall(struct InterruptFrame frame) {
             );
             break;
 
+        // SYSCALL 1
+        case SYSCALL_READ_DIRECTORY:
+            *((int8_t*) frame.cpu.general.ecx) = read_directory(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
+
         // SYSCALL 4
         case SYSCALL_GETCHAR:
             // keyboard_state_activate();
@@ -216,6 +223,10 @@ void syscall(struct InterruptFrame frame) {
         // SYSCALL 15
         case SYSCALL_GET_CURSOR_COL:
             *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.col;
+            break;
+
+        case SYSCALL_READ_CLUSTER:
+            read_clusters((void*) frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
             break;
     }
 }
