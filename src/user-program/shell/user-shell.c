@@ -4,10 +4,19 @@
 #include "../utils.h"
 #include "shell-background.h"
 
+// #define BLOCK_COUNT 16
+
+// static uint32_t currenDir = ROOT_CLUSTER_NUMBER;
+// static struct FAT32DirectoryTable curTable;
+// static char curDirName[300] = "/\0";
+// static struct FAT32DirectoryTable rootTable;
+
+void cd(struct StringN folder);
+
 // Filesystem variables
 struct FAT32DirectoryTable currentDir;
-char currentDirName[8];
 struct StringN currentDirPath;
+uint32_t currentDirCluster;
 
 // Shell properties
 #define SHELL_WINDOW_UPPER_HEIGHT 0
@@ -96,6 +105,11 @@ void create_path() {
     currentDirPath = create_path_recursive(cluster);
 }
 
+void set_current_cluster() {
+    struct FAT32DirectoryEntry curr_entry = currentDir.table[0];
+    currentDirCluster = (curr_entry.cluster_high << 16) | curr_entry.cluster_low;
+}
+
 void shell_create_bg() {
     // Set cursor   
     syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
@@ -158,7 +172,7 @@ void shell_print_prompt() {
     // Prompt handler
     // OS Title
     struct SyscallPutsArgs prompt_args = {
-        .buf = "Macrosoft@OS-2024 ",
+        .buf = "Macrosoft@OS-2024 [",
         .count = strlen(prompt_args.buf),
         .fg_color = 0xA,
         .bg_color = 0x0
@@ -180,7 +194,7 @@ void shell_print_prompt() {
 
     // User input prompt
     struct SyscallPutsArgs prompt_args3 = {
-        .buf = " >> ",
+        .buf = "] >> ",
         .count = strlen(prompt_args3.buf),
         .fg_color = 0xA,
         .bg_color = 0x0
@@ -244,7 +258,7 @@ void shell_input_handler(struct StringN input) {
     char* command = arg0.buf;
 
     if (strcmp(command, SHELL_CD)) {
-
+        cd(arg1);
     } else if (strcmp(command, SHELL_LS)) {
         ls();
     } else if (strcmp(command, SHELL_MKDIR)) {
@@ -299,6 +313,7 @@ int main(void) {
         .buffer_size = sizeof(struct FAT32DirectoryTable)
     };
     syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
+    set_current_cluster();
 
     // Behavior variables
     char buf;
@@ -405,6 +420,126 @@ int main(void) {
     }
     return 0;
 }
+
+void cd(struct StringN folder) {
+    // Check if folder is in current directory
+    struct FAT32DirectoryTable folder_table;
+
+    struct FAT32DriverRequest request = {
+        .buf = &folder_table,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = sizeof(struct FAT32DirectoryTable)
+    };
+    for (uint8_t i = 0; i < folder.len; i++) {
+        request.name[i] = folder.buf[i];
+    }
+
+    int8_t retcode;
+    syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) &retcode, 0);
+
+    switch (retcode) {
+        case 0:
+            // Set current directory to folder
+            currentDir = folder_table;
+            set_current_cluster();
+            break;
+        case 1:
+            struct SyscallPutsArgs args = {
+                .buf = "Directory ",
+                .count = strlen(args.buf),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+
+            args.buf = "'";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xE;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+            args.buf = folder.buf;
+            args.count = strlen(args.buf);
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+            args.buf = "'";
+            args.count = strlen(args.buf);
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+            args.buf = " is not a folder!";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xC;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            break;
+        case 2:
+            struct SyscallPutsArgs args2 = {
+                .buf = "Folder ",
+                .count = strlen(args2.buf),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+            args2.buf = "'";
+            args2.count = strlen(args2.buf);
+            args2.fg_color = 0xE;
+            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+            args2.buf = folder.buf;
+            args2.count = strlen(args2.buf);
+            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+            args2.buf = "'";
+            args2.count = strlen(args2.buf);
+            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+            args2.buf = " was not found in current directory!";
+            args2.count = strlen(args2.buf);
+            args2.fg_color = 0xC;
+            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+            break;
+        default:
+            break;
+    }
+}
+
+// void ls(){
+//     uint32_t retcode;
+//     struct FAT32DriverRequest request2 = {
+//             .buf                   = &curTable,
+//             .name                  = "\0\0\0\0\0\0\0\0",
+//             .ext                   = "\0\0\0",
+//             .parent_cluster_number = currenDir,
+//             .buffer_size           = 0,
+//     };
+//     for(int i = 0; i < slen(curTable.table[0].name); i++){
+//         request2.name[i] = curTable.table[0].name[i];
+//     }
+//     syscall(1, (uint32_t) &request2, (uint32_t) &retcode, 0);
+//     struct FAT32DirectoryTable table = curTable;
+//     for(int i = 1 ; i < 64 ; i++){
+//         if(table.table[i].attribute || table.table[i].cluster_high || table.table[i].cluster_low){
+//             int temp_int = 0;
+//             if(slen(table.table[i].name) > 8){
+//                 temp_int = 8;
+//             } else {
+//                 temp_int = slen(table.table[i].name);
+//             }
+//             syscall(5, (uint32_t) table.table[i].name, temp_int, 0xf);
+//             temp_int = 0;
+//             if(slen(table.table[i].ext) > 3){
+//                 temp_int = 3;
+//             } else {
+//                 temp_int = slen(table.table[i].ext);
+//             }
+//             if(temp_int > 0){
+//                 syscall(5, (uint32_t) ".", 1, 0xf);
+//             }
+//             syscall(5, (uint32_t) table.table[i].ext, temp_int, 0xf);
+//             syscall(5, (uint32_t) "\n", 1, 0xf);
+//         }
+//     }
+// }
 
 // // Command untuk membuat direktori bari pada terminal
 // void mkdir(char *dirname) {
