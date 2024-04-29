@@ -226,7 +226,7 @@ void syscall(struct InterruptFrame frame) {
             break;
 
         case SYSCALL_READ_CLUSTER:
-            read_clusters((void*) frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
+            read_clusters(frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
             break;
     }
 }
