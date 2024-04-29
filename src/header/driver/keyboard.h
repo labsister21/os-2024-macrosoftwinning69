@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "header/interrupt/interrupt.h"
+#include "user-program/SYSCALL_LIBRARY.h"
 
 #define MAX_ROWS 25
 
@@ -36,6 +37,7 @@ struct KeyboardDriverState {
     bool read_extended_mode;
     bool keyboard_input_on;
     char keyboard_buffer;
+    char keyboard_buffer_ext;
 
     // Keyboard status
     bool press_shift;
@@ -45,6 +47,12 @@ struct KeyboardDriverState {
     uint8_t row;
     uint8_t col;
     uint8_t last_non_space_col[MAX_ROWS];
+
+    // Cursor limits
+    uint8_t up_limit;
+    uint8_t down_limit;
+    uint8_t left_limit;
+    uint8_t right_limit;
 } __attribute((packed));
 
 extern struct KeyboardDriverState keyboard_state;

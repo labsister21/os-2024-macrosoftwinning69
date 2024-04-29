@@ -45,6 +45,15 @@ bool strcmp(char* str1, char* str2) {
     return true;
 }
 
+void strcpy(char* dest, char* src) {
+    while (*src) {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+    *dest = '\0';
+}
+
 // StringN operations
 void stringn_create(struct StringN* str) {
     memset(str->buf, '\0', 256);
@@ -54,4 +63,12 @@ void stringn_create(struct StringN* str) {
 void stringn_appendchar(struct StringN* str, char c) {
     str->buf[str->len] = c;
     str->len++;
+}
+
+void stringn_appendstr(struct StringN* str, char* buf) {
+    while (*buf) {
+        str->buf[str->len] = *buf;
+        str->len++;
+        buf++;
+    }
 }
