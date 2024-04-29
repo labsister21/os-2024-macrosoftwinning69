@@ -199,7 +199,25 @@ void shell_print_prompt() {
 }
 
 void shell_input_handler(struct StringN input) {
-    char* command = input.buf;
+    // Get 0th argument
+    struct StringN arg0;
+    stringn_create(&arg0);
+
+    uint32_t i;
+    for (i = 0; (i < input.len && input.buf[i] != ' '); i++) {
+        stringn_appendchar(&arg0, input.buf[i]);
+    }
+
+    // Get 1st argument
+    struct StringN arg1;
+    stringn_create(&arg1);
+
+    uint32_t j;
+    for (j = 1; (j < input.len && input.buf[i + j] != ' '); j++) {
+        stringn_appendchar(&arg1, input.buf[i + j]);
+    }
+    
+    char* command = arg0.buf;
 
     if (strcmp(command, SHELL_CD)) {
 
