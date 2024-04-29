@@ -36,6 +36,11 @@ struct StringN currentDirPath;
 
 #define SHELL_OKEGAS "okegas"
 
+//Definisi Fungsi Command
+//Definisi command mkdir (Make Directory)
+void mkdir(struct StringN folder_Name);
+
+
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
     __asm__ volatile("mov %0, %%ebx" : /* <Empty> */ : "r"(ebx));
@@ -224,7 +229,7 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_LS)) {
 
     } else if (strcmp(command, SHELL_MKDIR)) {
-
+        
     } else if (strcmp(command, SHELL_CAT)) {
 
     } else if (strcmp(command, SHELL_CP)) {
@@ -380,6 +385,17 @@ int main(void) {
         }
     }
     return 0;
+}
+
+void mkdir(struct StringN folder_Name){
+    // uint32_t currentCluster = 2;
+    // struct FAT32DriverRequest request;
+    // request.buf = &currentDir;
+    // request.buffer_size = 0;
+    // request.parent_cluster_number = currentCluster;
+
+    // memcpy(request.name, folder_Name, sizeof(request.name));
+    // request.name[sizeof(request.name)-1] = '';
 }
 
 // void ls(){
