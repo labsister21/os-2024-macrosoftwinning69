@@ -656,12 +656,14 @@ void rm(struct StringN folder){
 
 // meong
 void cat(struct StringN filename) {
+    uint8_t buf[10 * CLUSTER_SIZE];
+
     struct FAT32DriverRequest request = {
-        .buf = NULL,
+        .buf = &buf,
         .name = "\0\0\0\0\0\0\0\0",
         .ext = "\0\0\0",
         .parent_cluster_number = currentDirCluster,
-        .buffer_size = 0
+        .buffer_size = 10 * CLUSTER_SIZE
     };
 
     for (uint8_t i = 0; i < filename.len; i++) {
