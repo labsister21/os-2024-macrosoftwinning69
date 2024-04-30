@@ -11,7 +11,6 @@
 // static char curDirName[300] = "/\0";
 // static struct FAT32DirectoryTable rootTable;
 
-void cd(struct StringN folder);
 
 // Filesystem variables
 struct FAT32DirectoryTable currentDir;
@@ -41,7 +40,10 @@ uint32_t currentDirCluster;
 //Definisi Fungsi Command
 //Definisi command mkdir (Make Directory)
 void mkdir(struct StringN folder_Name);
-
+//Definisi command cd (Change Directory)
+void cd(struct StringN folder);
+//Definisi command rm (remove)
+void rm(struct StringN folder);
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -267,13 +269,13 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_LS)) {
         ls();
     } else if (strcmp(command, SHELL_MKDIR)) {
-        
+        mkdir(arg1);
     } else if (strcmp(command, SHELL_CAT)) {
 
     } else if (strcmp(command, SHELL_CP)) {
 
     } else if (strcmp(command, SHELL_RM)) {
-
+        rm(arg1);
     } else if (strcmp(command, SHELL_MV)) {
 
     } else if (strcmp(command, SHELL_FIND)) {
@@ -427,13 +429,80 @@ int main(void) {
 }
 
 void mkdir(struct StringN folder_Name){
-    // uint32_t currentCluster = 2;
-    // struct FAT32DriverRequest request;
-    // request.buf = &currentDir;
-    // request.buffer_size = 0;
-    // request.parent_cluster_number = currentCluster;
+    struct FAT32DriverRequest request = {
+        .name = "\0\0\0\0\0\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = 0,
+    };
+    struct SyscallPutsArgs args = {
+        .buf = "Directory ",
+        .count = strlen(args.buf),
+        .fg_color = 0xC,
+        .bg_color = 0x0
+    };
+    if(folder_Name.len > 8){
+        args.buf = "Directory name is too long! (Maximum 8 Characters)";
+        args.count = strlen(args.buf);
+        args.fg_color = 0xC;
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+    }
+    else{
+        for (uint8_t i = 0; i < folder_Name.len; i++) {
+            request.name[i] = folder_Name.buf[i];
+        }
+        int8_t retcode;
+        syscall(SYSCALL_WRITE, (uint32_t) &request, (uint32_t) &retcode, 0);
+        switch (retcode) {
+        case 0:
+            args.buf = "Operation success! ";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xE;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = "'";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xE;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = folder_Name.buf;
+            args.count = strlen(args.buf);
+            args.fg_color = 0xE;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = "'";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xE;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = "has been created..";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xE;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            break;
+        case 1:
+            args.buf = "mkdir: cannot create directory ";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xC;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = "'";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xC;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = folder_Name.buf;
+            args.count = strlen(args.buf);
+            args.fg_color = 0xC;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = "'";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xC;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            args.buf = ": File exists";
+            args.count = strlen(args.buf);
+            args.fg_color = 0xC;
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            break;
+        default:
+            break;
+    }
+}
 
-    // memcpy(request.name, folder_Name, sizeof(request.name));
+    // memcpy(request.name, f, sizeof(request.name));
     // request.name[sizeof(request.name)-1] = '';
 }
 void cd(struct StringN folder) {
@@ -515,6 +584,71 @@ void cd(struct StringN folder) {
             break;
         default:
             break;
+    }
+}
+
+void rm(struct StringN folder){
+    struct FAT32DriverRequest request = {
+        .name = "\0\0\0\0\0\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = 0,
+    };
+    struct SyscallPutsArgs args = {
+        .buf = "Directory ",
+        .count = strlen(args.buf),
+        .fg_color = 0xC,
+        .bg_color = 0x0
+    };
+    if(folder.len > 8){
+        args.buf = "rm: cannot remove : name is too long! (Maximum 8 Characters)";
+        args.count = strlen(args.buf);
+        args.fg_color = 0xC;
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+    }
+    else{
+       for (uint8_t i = 0; i < folder.len; i++) {
+            request.name[i] = folder.buf[i];
+        }
+        int8_t retcode;
+        syscall(SYSCALL_DELETE,(uint32_t) &request, (uint32_t) &retcode, 0);
+        switch (retcode){
+            case 0:
+                args.buf = "Operation success! ";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "'";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = folder.buf;
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "'";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "has been removed..";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                break;
+            case 1:
+                args.buf = "rm: cannot remove '";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = folder.buf;
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "': No such file or directory";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                break;
+        }
     }
 }
 

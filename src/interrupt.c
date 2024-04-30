@@ -226,7 +226,16 @@ void syscall(struct InterruptFrame frame) {
             break;
 
         case SYSCALL_READ_CLUSTER:
-            read_clusters(frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
+            read_clusters((struct ClusterBuffer*) frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
             break;
+        case SYSCALL_WRITE:
+            *((int8_t*) frame.cpu.general.ecx) = write(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
+        case SYSCALL_DELETE:
+            *((int8_t*) frame.cpu.general.ecx) = delete(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
     }
 }
