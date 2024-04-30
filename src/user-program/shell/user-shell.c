@@ -44,6 +44,8 @@ void mkdir(struct StringN folder_Name);
 void cd(struct StringN folder);
 //Definisi command rm (remove)
 void rm(struct StringN folder);
+//Definisi command cat
+void cat(struct StringN filename);
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -271,7 +273,7 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_MKDIR)) {
         mkdir(arg1);
     } else if (strcmp(command, SHELL_CAT)) {
-
+        cat(arg1);
     } else if (strcmp(command, SHELL_CP)) {
 
     } else if (strcmp(command, SHELL_RM)) {
@@ -652,49 +654,59 @@ void rm(struct StringN folder){
     }
 }
 
-// void ls(){
-//     uint32_t retcode;
-//     struct FAT32DriverRequest request2 = {
-//             .buf                   = &curTable,
-//             .name                  = "\0\0\0\0\0\0\0\0",
-//             .ext                   = "\0\0\0",
-//             .parent_cluster_number = currenDir,
-//             .buffer_size           = 0,
-//     };
-//     for(int i = 0; i < slen(curTable.table[0].name); i++){
-//         request2.name[i] = curTable.table[0].name[i];
-//     }
-//     syscall(1, (uint32_t) &request2, (uint32_t) &retcode, 0);
-//     struct FAT32DirectoryTable table = curTable;
-//     for(int i = 1 ; i < 64 ; i++){
-//         if(table.table[i].attribute || table.table[i].cluster_high || table.table[i].cluster_low){
-//             int temp_int = 0;
-//             if(slen(table.table[i].name) > 8){
-//                 temp_int = 8;
-//             } else {
-//                 temp_int = slen(table.table[i].name);
-//             }
-//             syscall(5, (uint32_t) table.table[i].name, temp_int, 0xf);
-//             temp_int = 0;
-//             if(slen(table.table[i].ext) > 3){
-//                 temp_int = 3;
-//             } else {
-//                 temp_int = slen(table.table[i].ext);
-//             }
-//             if(temp_int > 0){
-//                 syscall(5, (uint32_t) ".", 1, 0xf);
-//             }
-//             syscall(5, (uint32_t) table.table[i].ext, temp_int, 0xf);
-//             syscall(5, (uint32_t) "\n", 1, 0xf);
-//         }
-//     }
-// }
+// meong
+void cat(struct StringN filename) {
+    struct FAT32DriverRequest request = {
+        .buf = NULL,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = 0
+    };
 
-// // Command untuk membuat direktori bari pada terminal
-// void mkdir(char *dirname) {
-//     if (strlen(dirname) == 0) {
-//         puts("mkdir: missing operand\n");
-//         return;
-//     }
-//     sys_mkdir(dirname);
-// }
+    for (uint8_t i = 0; i < filename.len; i++) {
+        request.name[i] = filename.buf[i];
+    }
+
+    int8_t retcode;
+    syscall(SYSCALL_READ, (uint32_t) &request, (uint32_t) &retcode, 0);
+
+    switch (retcode) {
+        case 0:
+            struct SyscallPutsArgs args = {
+                .buf = request.buf,
+                .count = strlen(request.buf),
+                .fg_color = 0x7,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+            break;
+        case 1:
+            struct SyscallPutsArgs not_found_args = {
+                .buf = "cat: ",
+                .count = strlen("cat: "),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_found_args, 0, 0);
+
+            struct SyscallPutsArgs filename_args = {
+                .buf = filename.buf,
+                .count = filename.len,
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &filename_args, 0, 0);
+
+            struct SyscallPutsArgs not_found_args2 = {
+                .buf = ": No such file or directory",
+                .count = strlen(": No such file or directory"),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_found_args2, 0, 0);
+            break;
+        default:
+            break;
+    }
+}
