@@ -684,6 +684,31 @@ void cat(struct StringN filename) {
             syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
             break;
         case 1:
+            struct SyscallPutsArgs a_folder = {
+                .buf = "cat: ",
+                .count = strlen("cat: "),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &a_folder, 0, 0);
+
+            struct SyscallPutsArgs filename_args1 = {
+                .buf = filename.buf,
+                .count = filename.len,
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &filename_args1, 0, 0);
+
+            struct SyscallPutsArgs a_folder2 = {
+                .buf = ": Is a directory",
+                .count = strlen(": Is a directory"),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &a_folder2, 0, 0);
+            break;
+        case 2:
             struct SyscallPutsArgs not_found_args = {
                 .buf = "cat: ",
                 .count = strlen("cat: "),
@@ -692,13 +717,13 @@ void cat(struct StringN filename) {
             };
             syscall(SYSCALL_PUTS, (uint32_t) &not_found_args, 0, 0);
 
-            struct SyscallPutsArgs filename_args = {
+            struct SyscallPutsArgs filename_args2 = {
                 .buf = filename.buf,
                 .count = filename.len,
                 .fg_color = 0xC,
                 .bg_color = 0x0
             };
-            syscall(SYSCALL_PUTS, (uint32_t) &filename_args, 0, 0);
+            syscall(SYSCALL_PUTS, (uint32_t) &filename_args2, 0, 0);
 
             struct SyscallPutsArgs not_found_args2 = {
                 .buf = ": No such file or directory",
