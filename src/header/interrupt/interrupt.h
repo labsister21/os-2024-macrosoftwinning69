@@ -139,7 +139,6 @@ void pic_ack(uint8_t irq);
 // Shift PIC interrupt number to PIC1_OFFSET and PIC2_OFFSET (master and slave)
 void pic_remap(void);
 
-void activate_timer_interrupt(void);
 
 // void puts(struct SyscallPutsArgs args);
 

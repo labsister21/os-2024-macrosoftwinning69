@@ -6,6 +6,7 @@
 struct ProcessManagerState process_manager_state = {
     .process_list_used = {0},
     .active_process_count = 0,
+    .current_running_pid = NO_PROCESS_RUNNING
 };
 
 struct ProcessControlBlock _process_list[PROCESS_COUNT_MAX] = {0};
@@ -19,6 +20,72 @@ int32_t process_list_get_inactive_index(void) {
         }
     }
     return -1;
+}
+
+struct ProcessControlBlock* process_get_current_running_pcb_pointer(void) {
+    // Return NULL if no process is running
+    if (process_manager_state.current_running_pid == NO_PROCESS_RUNNING) {
+        return NULL;
+    }
+    
+    return &(_process_list[process_manager_state.current_running_pid]);
+}
+
+bool process_destroy(uint32_t pid) {
+    if (pid >= PROCESS_COUNT_MAX) return false;
+
+    // Get process page directory
+    struct PageDirectory* page_dir = _process_list[pid].context.page_directory_virtual_addr;
+    
+    // Free page frames
+    for (uint32_t i = 0; i < PROCESS_PAGE_FRAME_COUNT_MAX; i++) {
+        if (_process_list[pid].memory.data_virtual_addr_used[i] == true) {
+            paging_free_user_page_frame(page_dir, _process_list[pid].memory.virtual_addr_used[i]);
+        }
+    }
+
+    // Free page directory
+    paging_free_page_directory(page_dir);
+
+    // Delete data and decrement count from process manager
+    memset(&_process_list[pid], 0, sizeof(struct ProcessControlBlock));
+    process_manager_state.process_list_used[pid] = false;
+    process_manager_state.active_process_count--;
+
+    return true;
+}
+
+void process_allocate_page_frame(struct ProcessControlBlock* pcb, void* virtual_addr) {
+    // Auto return if page frame used count already exceed the limit
+    if (pcb->memory.page_frame_used_count >= PROCESS_PAGE_FRAME_COUNT_MAX) return;
+
+    for (uint32_t i = 0; i < PROCESS_PAGE_FRAME_COUNT_MAX; i++) {
+        if (pcb->memory.data_virtual_addr_used[i] == false) {
+            // Update PCB memory metadata
+            pcb->memory.data_virtual_addr_used[i] = true;
+            pcb->memory.virtual_addr_used[i] = virtual_addr;
+            pcb->memory.page_frame_used_count++;
+
+            // Allocate page frame
+            paging_allocate_user_page_frame(pcb->context.page_directory_virtual_addr, virtual_addr);
+            return;
+        }
+    }
+}
+
+void process_deallocate_page_frame(struct ProcessControlBlock* pcb, void* virtual_addr) {
+    for (uint32_t i = 0; i < PROCESS_PAGE_FRAME_COUNT_MAX; i++) {
+        if (pcb->memory.data_virtual_addr_used[i] == true && pcb->memory.virtual_addr_used[i] == virtual_addr) {
+            // Update PCB memory metadata
+            pcb->memory.data_virtual_addr_used[i] = false;
+            pcb->memory.virtual_addr_used[i] = NULL;
+            pcb->memory.page_frame_used_count--;
+
+            // Deallocate page frame
+            paging_free_user_page_frame(pcb->context.page_directory_virtual_addr, virtual_addr);
+            return;
+        }
+    }
 }
 
 int32_t process_create_user_process(struct FAT32DriverRequest request) {
@@ -44,6 +111,13 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
     // Process PCB 
     int32_t p_index = process_list_get_inactive_index();
     struct ProcessControlBlock *new_pcb = &(_process_list[p_index]);
+    process_manager_state.active_process_count++;
+
+    for (uint32_t i = 0; i < PROCESS_PAGE_FRAME_COUNT_MAX; i++) {
+        new_pcb->memory.data_virtual_addr_used[i] = false;
+        new_pcb->memory.virtual_addr_used[i] = NULL;
+    }
+    new_pcb->memory.page_frame_used_count = 0;
 
     // 1. Create new page directory
     struct PageDirectory* new_page_dir = paging_create_new_page_directory();
@@ -55,8 +129,11 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
     // Load newly created process page directory
     paging_use_page_directory(new_page_dir);
 
+    // Set PCB Page Directory
+    new_pcb->context.page_directory_virtual_addr = new_page_dir;
+
     // Allocate page frame at buf address
-    paging_allocate_user_page_frame(new_page_dir, request.buf); 
+    process_allocate_page_frame(new_pcb, request.buf);
 
     // Read file from memory
     if (read(request) != 0) {
@@ -87,8 +164,6 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
     // EFLAGS
     new_pcb->context.eflags = 0 | (CPU_EFLAGS_BASE_FLAG | CPU_EFLAGS_FLAG_INTERRUPT_ENABLE);
 
-    // Page Directory
-    new_pcb->context.page_directory_virtual_addr = new_page_dir;
 
     // 4. Initialize Process Metadata
     // Process ID
@@ -101,7 +176,6 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
     // Process Name
     memset(new_pcb->metadata.name, 0, PROCESS_NAME_LENGTH_MAX);
     memcpy(new_pcb->metadata.name, request.name, 8);
-
 
 exit_cleanup:
     return retcode;

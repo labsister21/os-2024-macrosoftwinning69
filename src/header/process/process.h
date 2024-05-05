@@ -46,6 +46,8 @@
 #define PROCESS_CREATE_FAIL_NOT_ENOUGH_MEMORY    3
 #define PROCESS_CREATE_FAIL_FS_READ_FAILURE      4
 
+#define NO_PROCESS_RUNNING          0xFFFFFFFF
+
 /**
  * Contain information needed for task to be able to get interrupted and resumed later
  *
@@ -85,6 +87,7 @@ struct ProcessControlBlock {
 
     struct {
         void     *virtual_addr_used[PROCESS_PAGE_FRAME_COUNT_MAX];
+        bool     data_virtual_addr_used[PROCESS_PAGE_FRAME_COUNT_MAX];
         uint32_t page_frame_used_count;
     } memory;
 };
@@ -98,6 +101,10 @@ struct ProcessManagerState {
 extern struct ProcessManagerState process_manager_state;
 
 extern struct ProcessControlBlock _process_list[PROCESS_COUNT_MAX];
+
+void process_allocate_page_frame(struct ProcessControlBlock* pcb, void* virtual_addr);
+
+void process_deallocate_page_frame(struct ProcessControlBlock* pcb, void* virtual_addr);
 
 /**
  * Get currently running process PCB pointer
