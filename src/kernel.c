@@ -52,6 +52,7 @@ void kernel_setup(void) {
     pic_remap();
     initialize_idt();
     activate_keyboard_interrupt();
+    activate_timer_interrupt();
 
     // Framebuffer operations
     // framebuffer_clear();
