@@ -52,7 +52,7 @@ void kernel_setup(void) {
     pic_remap();
     initialize_idt();
     activate_keyboard_interrupt();
-    activate_timer_interrupt();
+    // activate_timer_interrupt();
 
     // Framebuffer operations
     // framebuffer_clear();
@@ -89,6 +89,8 @@ void kernel_setup(void) {
     // Create & execute process 0
     process_create_user_process(request);
     paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
+    
+    process_allocate_page_frame(&_process_list[0], (uint32_t*) 0xBFFFFFFC);
     kernel_execute_user_program((void*) 0x0);
 
     // while (true);
