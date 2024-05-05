@@ -100,6 +100,7 @@ kernel_execute_user_program:
     push eax ; Stack segment selector (GDT_USER_DATA_SELECTOR), user privilege
     mov  eax, ecx
     add  eax, 0x400000 - 4
+    ;mov eax, 0xBFFFFFFC
     push eax ; User space stack pointer (esp), move it into last 4 MiB
     pushf    ; eflags register state, when jump inside user program
     mov  eax, 0x18 | 0x3

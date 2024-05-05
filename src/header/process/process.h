@@ -8,6 +8,7 @@
 #include "header/interrupt/interrupt.h"
 #include "header/memory/paging.h"
 #include "header/filesystem/fat32.h"
+#include "header/math/math.h"
 
 #define PROCESS_NAME_LENGTH_MAX          32
 #define PROCESS_PAGE_FRAME_COUNT_MAX     8
@@ -45,9 +46,58 @@
 #define PROCESS_CREATE_FAIL_NOT_ENOUGH_MEMORY    3
 #define PROCESS_CREATE_FAIL_FS_READ_FAILURE      4
 
+/**
+ * Contain information needed for task to be able to get interrupted and resumed later
+ *
+ * @param cpu                         All CPU register state
+ * @param eip                         CPU instruction counter to resume execution
+ * @param eflags                      Flag register to load before resuming the execution
+ * @param page_directory_virtual_addr CPU register CR3, containing pointer to active page directory
+ */
+struct Context {
+    struct CPURegister      cpu;
+    uint32_t                eip;
+    uint32_t                eflags;
+    struct PageDirectory*   page_directory_virtual_addr;
+};
 
+typedef enum PROCESS_STATE {
+    PROCESS_STATE_RUNNING,
+    PROCESS_STATE_READY,
+    PROCESS_STATE_BLOCKED,
+} PROCESS_STATE;
 
+/**
+ * Structure data containing information about a process
+ *
+ * @param metadata Process metadata, contain various information about process
+ * @param context  Process context used for context saving & switching
+ * @param memory   Memory used for the process
+ */
+struct ProcessControlBlock {
+    struct {
+        uint32_t pid;
+        char     name[PROCESS_NAME_LENGTH_MAX];
+        PROCESS_STATE state;
+    } metadata;
 
+    struct Context context;
+
+    struct {
+        void     *virtual_addr_used[PROCESS_PAGE_FRAME_COUNT_MAX];
+        uint32_t page_frame_used_count;
+    } memory;
+};
+
+struct ProcessManagerState {
+    bool        process_list_used[PROCESS_COUNT_MAX];
+    uint32_t    active_process_count;
+    uint32_t    current_running_pid;
+};
+
+extern struct ProcessManagerState process_manager_state;
+
+extern struct ProcessControlBlock _process_list[PROCESS_COUNT_MAX];
 
 /**
  * Get currently running process PCB pointer
