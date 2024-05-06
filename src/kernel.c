@@ -11,6 +11,7 @@
 #include "header/stdlib/string.h"
 #include "header/memory/paging.h"
 #include "header/process/process.h"
+#include "header/scheduler/scheduler.h"
 #include "header/background.h"
 
 void write_string(int row, int col, char* str, int fg, int bg) {
@@ -91,7 +92,41 @@ void kernel_setup(void) {
     paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
     
     process_allocate_page_frame(&_process_list[0], (uint32_t*) 0xBFFFFFFC);
-    kernel_execute_user_program((void*) 0x0);
+
+    // struct Context ctx = {
+    //     .cpu = {
+    //         .index = {
+    //             .edi = 0x50,
+    //             .esi = 0x51,
+    //         },
+    //         .stack = {
+    //             .ebp = _process_list[0].context.cpu.stack.ebp,
+    //             .esp = _process_list[0].context.cpu.stack.esp,
+    //         },
+    //         .general = {
+    //             .ebx = 0x54,
+    //             .edx = 0x55,
+    //             .ecx = 0x56,
+    //             .eax = 0x57,
+    //         },
+    //         .segment = {
+    //             .gs = _process_list[0].context.cpu.segment.gs,
+    //             .fs = _process_list[0].context.cpu.segment.fs,
+    //             .es = _process_list[0].context.cpu.segment.es,
+    //             .ds = _process_list[0].context.cpu.segment.ds,
+    //         },
+        
+    //     },
+    //     .eip = _process_list[0].context.eip,
+    //     .eflags = _process_list[0].context.eflags,
+    //     .page_directory_virtual_addr = _process_list[0].context.page_directory_virtual_addr,
+    // };
+    // process_context_switch(_process_list[0].context);
+    process_context_switch(_process_list[0].context);
+
+    // uint8_t hi = 0;
+    // hi++;
+    // kernel_execute_user_program((void*) 0x0);
 
     // while (true);
 
