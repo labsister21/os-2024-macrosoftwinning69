@@ -508,84 +508,53 @@ void mkdir(struct StringN folder_Name){
     // request.name[sizeof(request.name)-1] = '';
 }
 void cd(struct StringN folder) {
-    // Check if folder is in current directory
-    struct FAT32DirectoryTable folder_table;
+    if (strcmp(folder.buf, "..") == 0) {
+        struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
+        uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
 
-    struct FAT32DriverRequest request = {
-        .buf = &folder_table,
-        .name = "\0\0\0\0\0\0\0\0",
-        .ext = "\0\0\0",
-        .parent_cluster_number = currentDirCluster,
-        .buffer_size = sizeof(struct FAT32DirectoryTable)
-    };
-    for (uint8_t i = 0; i < folder.len; i++) {
-        request.name[i] = folder.buf[i];
-    }
+        struct FAT32DriverRequest request = {
+            .buf = &currentDir,
+            .name = "root",
+            .ext = "\0\0\0",
+            .parent_cluster_number = parent_cluster,
+            .buffer_size = sizeof(struct FAT32DirectoryTable)
+        };
+        syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
+        set_current_cluster();
 
-    int8_t retcode;
-    syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) &retcode, 0);
+        create_path();
+    } else {
+        struct FAT32DirectoryTable table = currentDir;
+        for (int i = 2; i < 64; i++) {
+            struct FAT32DirectoryEntry entry = table.table[i];
+            if (entry.name[0] == '\0') {
+                break;
+            }
+            if (strcmp(entry.name, folder.buf) == 0) {
+                uint32_t cluster = (entry.cluster_high << 16) | entry.cluster_low;
+                struct FAT32DriverRequest request = {
+                    .buf = &currentDir,
+                    .name = *entry.name,
+                    .ext = *entry.ext,
+                    .parent_cluster_number = cluster,
+                    .buffer_size = sizeof(struct FAT32DirectoryTable)
+                    {}
+                };
+                syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
+                set_current_cluster();
 
-    switch (retcode) {
-        case 0:
-            // Set current directory to folder
-            currentDir = folder_table;
-            set_current_cluster();
-            break;
-        case 1:
-            struct SyscallPutsArgs args = {
-                .buf = "Directory ",
-                .count = strlen(args.buf),
-                .fg_color = 0xC,
-                .bg_color = 0x0
-            };
+                create_path();
+                return;
+            }
+        }
 
-            args.buf = "'";
-            args.count = strlen(args.buf);
-            args.fg_color = 0xE;
-            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-
-            args.buf = folder.buf;
-            args.count = strlen(args.buf);
-            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-
-            args.buf = "'";
-            args.count = strlen(args.buf);
-            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-
-            args.buf = " is not a folder!";
-            args.count = strlen(args.buf);
-            args.fg_color = 0xC;
-            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-            break;
-        case 2:
-            struct SyscallPutsArgs args2 = {
-                .buf = "Folder ",
-                .count = strlen(args2.buf),
-                .fg_color = 0xC,
-                .bg_color = 0x0
-            };
-            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
-
-            args2.buf = "'";
-            args2.count = strlen(args2.buf);
-            args2.fg_color = 0xE;
-            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
-
-            args2.buf = folder.buf;
-            args2.count = strlen(args2.buf);
-            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
-
-            args2.buf = "'";
-            args2.count = strlen(args2.buf);
-            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
-
-            args2.buf = " was not found in current directory!";
-            args2.count = strlen(args2.buf);
-            args2.fg_color = 0xC;
-            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
-            break;
-        default:
-            break;
+        struct SyscallPutsArgs args = {
+            .buf = "Directory not found!",
+            .count = strlen(args.buf),
+            .fg_color = 0xC,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
     }
 }
 
@@ -684,6 +653,31 @@ void cat(struct StringN filename) {
             syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
             break;
         case 1:
+            struct SyscallPutsArgs a_folder = {
+                .buf = "cat: ",
+                .count = strlen("cat: "),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &a_folder, 0, 0);
+
+            struct SyscallPutsArgs filename_args1 = {
+                .buf = filename.buf,
+                .count = filename.len,
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &filename_args1, 0, 0);
+
+            struct SyscallPutsArgs a_folder2 = {
+                .buf = ": Is a directory",
+                .count = strlen(": Is a directory"),
+                .fg_color = 0xC,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &a_folder2, 0, 0);
+            break;
+        case 2:
             struct SyscallPutsArgs not_found_args = {
                 .buf = "cat: ",
                 .count = strlen("cat: "),
@@ -692,13 +686,13 @@ void cat(struct StringN filename) {
             };
             syscall(SYSCALL_PUTS, (uint32_t) &not_found_args, 0, 0);
 
-            struct SyscallPutsArgs filename_args = {
+            struct SyscallPutsArgs filename_args2 = {
                 .buf = filename.buf,
                 .count = filename.len,
                 .fg_color = 0xC,
                 .bg_color = 0x0
             };
-            syscall(SYSCALL_PUTS, (uint32_t) &filename_args, 0, 0);
+            syscall(SYSCALL_PUTS, (uint32_t) &filename_args2, 0, 0);
 
             struct SyscallPutsArgs not_found_args2 = {
                 .buf = ": No such file or directory",
