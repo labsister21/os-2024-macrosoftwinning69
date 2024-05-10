@@ -5,6 +5,8 @@
 #include "header/filesystem/fat32.h"
 #include "header/text/framebuffer.h"
 #include "header/kernel-entrypoint.h"
+#include "header/process/process.h"
+#include "header/scheduler/scheduler.h"
 #include "user-program/SYSCALL_LIBRARY.h"
 
 void io_wait(void) {
@@ -62,7 +64,21 @@ void puts(struct SyscallPutsArgs args);
 void main_interrupt_handler(struct InterruptFrame frame) {
     switch (frame.int_number) {
         case (PIC1_OFFSET + IRQ_TIMER):
+            // Construct context to save to PCB
+            struct Context ctx = {
+                .cpu = frame.cpu,
+                .eip = frame.int_stack.eip,
+                .eflags = frame.int_stack.eflags
+            };
+            
+            // Save context to current running process
+            scheduler_save_context_to_current_running_pcb(ctx);
+
+            // Send PIC_ACK 
             pic_ack(IRQ_TIMER);
+
+            // Run scheduler process switch 
+            scheduler_switch_to_next_process();
             break;
         case (PIC1_OFFSET + IRQ_KEYBOARD):
             keyboard_isr();

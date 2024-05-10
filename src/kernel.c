@@ -87,12 +87,14 @@ void kernel_setup(void) {
     set_tss_kernel_current_stack();
     // kernel_execute_user_program((uint8_t*) 0x0);
 
-    // Create & execute process 0
+    // Create first process (shell)
     process_create_user_process(request);
-    paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
-    
-    process_allocate_page_frame(&_process_list[0], (uint32_t*) 0xBFFFFFFC);
+    // paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
 
+    // Start scheduler
+    scheduler_init();
+    scheduler_switch_to_next_process();
+    
     // struct Context ctx = {
     //     .cpu = {
     //         .index = {
@@ -118,11 +120,10 @@ void kernel_setup(void) {
         
     //     },
     //     .eip = _process_list[0].context.eip,
-    //     .eflags = _process_list[0].context.eflags,
+    //     .eflags = 0x69,
     //     .page_directory_virtual_addr = _process_list[0].context.page_directory_virtual_addr,
     // };
-    // process_context_switch(_process_list[0].context);
-    process_context_switch(_process_list[0].context);
+    // process_context_switch(ctx);
 
     // uint8_t hi = 0;
     // hi++;

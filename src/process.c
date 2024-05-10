@@ -14,8 +14,6 @@ struct ProcessControlBlock _process_list[PROCESS_COUNT_MAX] = {0};
 int32_t process_list_get_inactive_index(void) {
     for (int i = 0; i < PROCESS_COUNT_MAX; i++) {
         if (process_manager_state.process_list_used[i] == false) {
-            process_manager_state.process_list_used[i] = true;
-            process_manager_state.active_process_count++;
             return i;
         }
     }
@@ -110,8 +108,11 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
 
     // Process PCB 
     int32_t p_index = process_list_get_inactive_index();
+        
     struct ProcessControlBlock *new_pcb = &(_process_list[p_index]);
+
     process_manager_state.active_process_count++;
+    process_manager_state.process_list_used[p_index] = true;
 
     for (uint32_t i = 0; i < PROCESS_PAGE_FRAME_COUNT_MAX; i++) {
         new_pcb->memory.data_virtual_addr_used[i] = false;
@@ -129,11 +130,12 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
     // Load newly created process page directory
     paging_use_page_directory(new_page_dir);
 
-    // Set PCB Page Directory
+    // Set PCB page directory
     new_pcb->context.page_directory_virtual_addr = new_page_dir;
 
     // Allocate page frame at buf address
     process_allocate_page_frame(new_pcb, request.buf);
+    process_allocate_page_frame(new_pcb, (void*) (KERNEL_VIRTUAL_ADDRESS_BASE - 4));
 
     // Read file from memory
     if (read(request) != 0) {
@@ -163,7 +165,6 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
 
     // EFLAGS
     new_pcb->context.eflags = 0 | (CPU_EFLAGS_BASE_FLAG | CPU_EFLAGS_FLAG_INTERRUPT_ENABLE);
-
 
     // 4. Initialize Process Metadata
     // Process ID

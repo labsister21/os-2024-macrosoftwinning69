@@ -18,7 +18,7 @@ process_context_switch:
 
     ; EFLAGS
     mov eax, [ecx+52]
-    pushfd
+    push eax
 
     ; CS
     mov eax, 0x18 | 0x3
