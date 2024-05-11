@@ -20,9 +20,12 @@ void scheduler_init(void) {
 void scheduler_save_context_to_current_running_pcb(struct Context ctx) {
     // Get current running process
     struct ProcessControlBlock* pcb = process_get_current_running_pcb_pointer();
-    
+
     // Return if no process is running
     if (pcb != NULL) {
+        // Change state from RUNNING to READY
+        pcb->metadata.state = PROCESS_STATE_READY;
+        
         // Get context of current process
         struct Context* process_context = &(pcb->context);
 
@@ -46,6 +49,7 @@ void scheduler_switch_to_next_process(void) {
         index = (index + 1) % PROCESS_COUNT_MAX;
         if (process_manager_state.process_list_used[index] == true) {
             next_process = _process_list[index];
+            _process_list[index].metadata.state = PROCESS_STATE_RUNNING;
             process_manager_state.current_running_pid = index;
             break;
         }
