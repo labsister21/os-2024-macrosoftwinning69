@@ -264,5 +264,10 @@ void syscall(struct InterruptFrame frame) {
         case SYSCALL_READ_CLUSTER:
             read_clusters((struct ClusterBuffer*) frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
             break;
+
+        // SYSCALL 17
+        case SYSCALL_TERMINATE_PROCESS:
+            process_destroy(process_manager_state.current_running_pid);
+            break;
     }
 }
