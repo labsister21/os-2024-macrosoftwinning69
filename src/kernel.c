@@ -53,14 +53,6 @@ void kernel_setup(void) {
     pic_remap();
     initialize_idt();
     activate_keyboard_interrupt();
-    // activate_timer_interrupt();
-
-    // Framebuffer operations
-    // framebuffer_clear();
-    // create_bg();
-    // write_string(10, 8, "Hello, User!", 0, 0x2);
-    // write_string(11, 11, "Welcome to Macrosoft Winning OS!", 0, 0x2);
-    // framebuffer_set_cursor(0, 0);
 
     // Initialize filesystem FAT32
     initialize_filesystem_fat32();
@@ -72,24 +64,30 @@ void kernel_setup(void) {
     // Allocate first 4 MiB virtual memory
     paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0);
 
+    // // Write bin folder
+    // struct FAT32DriverRequest bin = {
+    //     .name = "bin",
+    //     .ext = "\0\0\0",
+    //     .parent_cluster_number = ROOT_CLUSTER_NUMBER,
+    //     .buffer_size = 0
+    // };
+    // write(bin);
+    
     // Write shell into memory
+    uint32_t BIN_CLUSTER_NUMBER = 5;
     struct FAT32DriverRequest request = {
         .buf                   = (uint8_t*) 0,
         .name                  = "shell",
         .ext                   = "\0\0\0",
-        .parent_cluster_number = ROOT_CLUSTER_NUMBER,
+        .parent_cluster_number = BIN_CLUSTER_NUMBER,
         .buffer_size           = 0x100000,
     };
-    // int8_t xd = read(request);
-    // xd++;
 
     // Set TSS $esp pointer and jump into shell 
     set_tss_kernel_current_stack();
-    // kernel_execute_user_program((uint8_t*) 0x0);
 
     // Create first process (shell)
     process_create_user_process(request);
-    // paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
 
     // Start scheduler
     scheduler_init();
