@@ -177,6 +177,20 @@ void syscall(struct InterruptFrame frame) {
             );
             break;
 
+        // SYSCALL 2
+        case SYSCALL_WRITE:
+            *((int8_t*) frame.cpu.general.ecx) = write(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
+
+        // SYSCALL 3
+        case SYSCALL_DELETE:
+            *((int8_t*) frame.cpu.general.ecx) = delete(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
+
         // SYSCALL 4
         case SYSCALL_GETCHAR:
             // keyboard_state_activate();
@@ -246,17 +260,9 @@ void syscall(struct InterruptFrame frame) {
             *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.col;
             break;
 
+        // SYSCALL 16
         case SYSCALL_READ_CLUSTER:
             read_clusters((struct ClusterBuffer*) frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
             break;
-        case SYSCALL_WRITE:
-            *((int8_t*) frame.cpu.general.ecx) = write(
-                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
-            );
-            break;
-        case SYSCALL_DELETE:
-            *((int8_t*) frame.cpu.general.ecx) = delete(
-                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
-            );
     }
 }
