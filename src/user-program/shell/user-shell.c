@@ -37,15 +37,21 @@ uint32_t currentDirCluster;
 
 #define SHELL_OKEGAS "okegas"
 
-//Definisi Fungsi Command
-//Definisi command mkdir (Make Directory)
+// Shell process commands
+#define SHELL_PS "ps"
+
+// Definisi shell commands
+// Definisi command mkdir (Make Directory)
 void mkdir(struct StringN folder_Name);
-//Definisi command cd (Change Directory)
+// Definisi command cd (Change Directory)
 void cd(struct StringN folder);
-//Definisi command rm (remove)
+// Definisi command rm (remove)
 void rm(struct StringN folder);
-//Definisi command cat
+// Definisi command cat
 void cat(struct StringN filename);
+
+// Definisi process commands
+void ps();
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -294,6 +300,8 @@ void shell_input_handler(struct StringN input) {
             .bg_color = 0x0
         };
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+    } else if (strcmp(command, SHELL_PS)) {
+        ps();
     } else {
         struct SyscallPutsArgs args = {
             .buf = "Unknown command! Please enter another command.",
@@ -704,5 +712,109 @@ void cat(struct StringN filename) {
             break;
         default:
             break;
+    }
+}
+
+// ps
+void ps() {
+    // Get max process count
+    uint32_t max_process_count;
+    syscall(SYSCALL_GET_MAX_PROCESS_COUNT, (uint32_t) &max_process_count, 0, 0);
+
+    // Newline struct
+    struct SyscallPutsArgs newline = {
+        .buf = "\n",
+        .count = strlen(newline.buf),
+        .fg_color = 0x0,
+        .bg_color = 0x0
+    };
+
+    // Whitespace struct
+    struct SyscallPutsArgs whitespace = {
+        .buf = " ",
+        .count = strlen(whitespace.buf),
+        .fg_color = 0x0,
+        .bg_color = 0x0
+    };
+    uint32_t COL_NAME = 11;
+    uint32_t COL_STATE = 23;
+    uint32_t COL_FRAME_COUNT = 36;
+
+    // Print header
+    struct SyscallPutsArgs header = {
+        .buf = "PID        Name        State        Frame Count",
+        .count = strlen(header.buf),
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &header, 0, 0);
+
+    // Print process info
+    uint32_t col;
+    for (uint32_t i = 0; i < max_process_count; i++) {
+        // Create process_info struct
+        struct SyscallProcessInfoArgs process_info = {
+            .pid = i,
+        };
+
+        // Read i-th process info
+        syscall(SYSCALL_GET_PROCESS_INFO, (uint32_t) &process_info, 0, 0);
+
+        // Print process info if exists at i-th slot
+        if (process_info.process_exists) {
+            // Print newline
+            syscall(SYSCALL_PUTS, (uint32_t) &newline, 0, 0);
+
+            // PID
+            struct SyscallPutsArgs pid = {
+                .buf = itoa[i],
+                .count = strlen(pid.buf),
+                .fg_color = BIOS_WHITE,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &pid, 0, 0);
+
+            do {
+                syscall(SYSCALL_PUTS, (uint32_t) &whitespace, 0, 0);
+                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &col, 0, 0);
+            } while (col < COL_NAME);
+
+            // Process name
+            struct SyscallPutsArgs name = {
+                .buf = process_info.name,
+                .count = strlen(name.buf),
+                .fg_color = BIOS_LIGHT_GREEN,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &name, 0, 0);
+
+            do {
+                syscall(SYSCALL_PUTS, (uint32_t) &whitespace, 0, 0);
+                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &col, 0, 0);
+            } while (col < COL_STATE);
+
+            // Process state
+            struct SyscallPutsArgs state = {
+                .buf = process_info.state,
+                .count = strlen(state.buf),
+                .fg_color = BIOS_LIGHT_CYAN,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &state, 0, 0);
+
+            do {
+                syscall(SYSCALL_PUTS, (uint32_t) &whitespace, 0, 0);
+                syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &col, 0, 0);
+            } while (col < COL_FRAME_COUNT);
+
+            // Process frame count
+            struct SyscallPutsArgs frame_count = {
+                .buf = itoa[process_info.page_frame_used_count],
+                .count = strlen(frame_count.buf),
+                .fg_color = BIOS_LIGHT_BLUE,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &frame_count, 0, 0);
+        }
     }
 }

@@ -10,6 +10,8 @@
 #include "header/filesystem/fat32.h"
 #include "header/stdlib/string.h"
 #include "header/memory/paging.h"
+#include "header/process/process.h"
+#include "header/scheduler/scheduler.h"
 #include "header/background.h"
 
 void write_string(int row, int col, char* str, int fg, int bg) {
@@ -40,9 +42,9 @@ void create_bg() {
 
 void kernel_setup(void) {
     // Test paging
-    paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x600000);
+    // paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x600000);
     // paging_free_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x700000);
-    *((uint8_t*) 0x500000) = 1;
+    // *((uint8_t*) 0x500000) = 1;
 
     // Load GDT
     load_gdt(&_gdt_gdtr);
@@ -51,6 +53,7 @@ void kernel_setup(void) {
     pic_remap();
     initialize_idt();
     activate_keyboard_interrupt();
+    // activate_timer_interrupt();
 
     // Framebuffer operations
     // framebuffer_clear();
@@ -77,12 +80,54 @@ void kernel_setup(void) {
         .parent_cluster_number = ROOT_CLUSTER_NUMBER,
         .buffer_size           = 0x100000,
     };
-    int8_t xd = read(request);
-    xd++;
+    // int8_t xd = read(request);
+    // xd++;
 
     // Set TSS $esp pointer and jump into shell 
     set_tss_kernel_current_stack();
-    kernel_execute_user_program((uint8_t*) 0x0);
+    // kernel_execute_user_program((uint8_t*) 0x0);
+
+    // Create first process (shell)
+    process_create_user_process(request);
+    // paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
+
+    // Start scheduler
+    scheduler_init();
+    scheduler_switch_to_next_process();
+    
+    // struct Context ctx = {
+    //     .cpu = {
+    //         .index = {
+    //             .edi = 0x50,
+    //             .esi = 0x51,
+    //         },
+    //         .stack = {
+    //             .ebp = _process_list[0].context.cpu.stack.ebp,
+    //             .esp = _process_list[0].context.cpu.stack.esp,
+    //         },
+    //         .general = {
+    //             .ebx = 0x54,
+    //             .edx = 0x55,
+    //             .ecx = 0x56,
+    //             .eax = 0x57,
+    //         },
+    //         .segment = {
+    //             .gs = _process_list[0].context.cpu.segment.gs,
+    //             .fs = _process_list[0].context.cpu.segment.fs,
+    //             .es = _process_list[0].context.cpu.segment.es,
+    //             .ds = _process_list[0].context.cpu.segment.ds,
+    //         },
+        
+    //     },
+    //     .eip = _process_list[0].context.eip,
+    //     .eflags = 0x69,
+    //     .page_directory_virtual_addr = _process_list[0].context.page_directory_virtual_addr,
+    // };
+    // process_context_switch(ctx);
+
+    // uint8_t hi = 0;
+    // hi++;
+    // kernel_execute_user_program((void*) 0x0);
 
     // while (true);
 

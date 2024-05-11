@@ -5,6 +5,8 @@
 #include "header/filesystem/fat32.h"
 #include "header/text/framebuffer.h"
 #include "header/kernel-entrypoint.h"
+#include "header/process/process.h"
+#include "header/scheduler/scheduler.h"
 #include "user-program/SYSCALL_LIBRARY.h"
 
 void io_wait(void) {
@@ -57,8 +59,27 @@ void set_tss_kernel_current_stack(void) {
     _interrupt_tss_entry.esp0 = stack_ptr + 8; 
 }
 
+void puts(struct SyscallPutsArgs args);
+
 void main_interrupt_handler(struct InterruptFrame frame) {
     switch (frame.int_number) {
+        case (PIC1_OFFSET + IRQ_TIMER):
+            // Construct context to save to PCB
+            struct Context ctx = {
+                .cpu = frame.cpu,
+                .eip = frame.int_stack.eip,
+                .eflags = frame.int_stack.eflags
+            };
+            
+            // Save context to current running process
+            scheduler_save_context_to_current_running_pcb(ctx);
+
+            // Send PIC_ACK 
+            pic_ack(IRQ_TIMER);
+
+            // Run scheduler process switch 
+            scheduler_switch_to_next_process();
+            break;
         case (PIC1_OFFSET + IRQ_KEYBOARD):
             keyboard_isr();
             break;
@@ -140,6 +161,47 @@ void puts_at(struct SyscallPutsAtArgs args) {
     }
 }
 
+void get_process_info(struct SyscallProcessInfoArgs* args) {
+    // Get process index
+    uint32_t pid = args->pid;
+
+    // Set process_exists flag
+    args->process_exists = process_manager_state.process_list_used[pid];
+
+    // If process exists, get the process info
+    if (args->process_exists) {
+        // Get process metadata
+        struct ProcessControlBlock* pcb = &(_process_list[pid]);
+        
+        // Process name
+        for (uint8_t i = 0; i < PROCESS_NAME_LENGTH_MAX; i++) {
+            args->name[i] = pcb->metadata.name[i];
+        }
+        
+        // Process state
+        switch (pcb->metadata.state) {
+            case PROCESS_STATE_RUNNING:
+                for (uint8_t i = 0; i < 7; i++) {
+                    args->state[i] = "RUNNING"[i];
+                }
+                break;
+            case PROCESS_STATE_READY:
+                for (uint8_t i = 0; i < 5; i++) {
+                    args->state[i] = "READY"[i];
+                }
+                break;
+            case PROCESS_STATE_BLOCKED:
+                for (uint8_t i = 0; i < 7; i++) {
+                    args->state[i] = "BLOCKED"[i];
+                }
+                break;
+        } 
+
+        // Get process memory info
+        args->page_frame_used_count = pcb->memory.page_frame_used_count;
+    }
+}
+
 void syscall(struct InterruptFrame frame) {
     switch (frame.cpu.general.eax) {
         // SYSCALL 0
@@ -152,6 +214,20 @@ void syscall(struct InterruptFrame frame) {
         // SYSCALL 1
         case SYSCALL_READ_DIRECTORY:
             *((int8_t*) frame.cpu.general.ecx) = read_directory(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
+
+        // SYSCALL 2
+        case SYSCALL_WRITE:
+            *((int8_t*) frame.cpu.general.ecx) = write(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
+
+        // SYSCALL 3
+        case SYSCALL_DELETE:
+            *((int8_t*) frame.cpu.general.ecx) = delete(
                 *(struct FAT32DriverRequest*) frame.cpu.general.ebx
             );
             break;
@@ -225,17 +301,24 @@ void syscall(struct InterruptFrame frame) {
             *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.col;
             break;
 
+        // SYSCALL 16
         case SYSCALL_READ_CLUSTER:
             read_clusters((struct ClusterBuffer*) frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
             break;
-        case SYSCALL_WRITE:
-            *((int8_t*) frame.cpu.general.ecx) = write(
-                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
-            );
+
+        // SYSCALL 17
+        case SYSCALL_TERMINATE_PROCESS:
+            process_destroy(process_manager_state.current_running_pid);
             break;
-        case SYSCALL_DELETE:
-            *((int8_t*) frame.cpu.general.ecx) = delete(
-                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
-            );
+
+        // SYSCALL 18
+        case SYSCALL_GET_MAX_PROCESS_COUNT:
+            *((uint32_t*) frame.cpu.general.ebx) = PROCESS_COUNT_MAX;
+            break;
+
+        // SYSCALL 19
+        case SYSCALL_GET_PROCESS_INFO:
+            get_process_info((struct SyscallProcessInfoArgs*) frame.cpu.general.ebx);
+            break;
     }
 }

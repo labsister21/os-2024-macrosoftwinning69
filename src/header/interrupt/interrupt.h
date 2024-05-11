@@ -74,8 +74,8 @@ struct CPURegister {
         uint32_t esi;
     } __attribute__((packed)) index;
     struct {
-        uint32_t esp;
         uint32_t ebp;
+        uint32_t esp;
     } __attribute__((packed)) stack;
     struct {
         uint32_t ebx;
@@ -138,6 +138,9 @@ void pic_ack(uint8_t irq);
 
 // Shift PIC interrupt number to PIC1_OFFSET and PIC2_OFFSET (master and slave)
 void pic_remap(void);
+
+
+// void puts(struct SyscallPutsArgs args);
 
 /**
  * Main interrupt handler when any interrupt / exception is raised.
