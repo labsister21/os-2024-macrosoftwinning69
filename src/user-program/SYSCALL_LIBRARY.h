@@ -18,6 +18,7 @@
 #define SYSCALL_GET_CURSOR_ROW          14
 #define SYSCALL_GET_CURSOR_COL          15
 #define SYSCALL_READ_CLUSTER            16
+#define SYSCALL_FIND_FILE               17
 
 // Extended scancode handling
 #define EXT_BUFFER_NONE               0

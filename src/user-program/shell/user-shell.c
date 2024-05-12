@@ -46,6 +46,8 @@ void cd(struct StringN folder);
 void rm(struct StringN folder);
 //Definisi command cat
 void cat(struct StringN filename);
+//Definisi command find
+void find(struct StringN filename);
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -279,9 +281,9 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_RM)) {
         rm(arg1);
     } else if (strcmp(command, SHELL_MV)) {
-
+        
     } else if (strcmp(command, SHELL_FIND)) {
-
+        find(arg1);
     } else if (strcmp(command, SHELL_CLEAR)) {
         syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
         syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
@@ -704,5 +706,78 @@ void cat(struct StringN filename) {
             break;
         default:
             break;
+    }
+}
+
+void find(struct StringN filename){
+    struct FAT32DriverRequest request = {
+        .name = "\0\0\0\0\0\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = 0,
+    };
+    struct SyscallPutsArgs args = {
+        .buf = "Directory ",
+        .count = strlen(args.buf),
+        .fg_color = 0xC,
+        .bg_color = 0x0
+    };
+    if(strlen(filename.buf) > 8){
+        args.buf = "find: cannot find : name is too long! (Maximum 8 Characters)";
+        args.count = strlen(args.buf);
+        args.fg_color = 0xC;
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        args.buf = filename.buf;
+        args.count = strlen(args.buf);
+        args.fg_color = 0xC;
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+    }
+    else{
+        for (uint8_t i = 0; i < strlen(filename.buf); i++) {
+            request.name[i] = filename.buf[i];
+        }
+        int8_t retcode;
+        syscall(SYSCALL_FIND_FILE,(uint32_t) &request, (uint32_t) &retcode, 0);
+        switch (retcode){
+            case 0:
+                args.buf = "Operation success! ";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "'";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                // args.buf = filename.buf;
+                // args.count = strlen(args.buf);
+                // args.fg_color = 0xE;
+                // syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "'";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "has been found on:";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = request.buf;
+                args.count = strlen(args.buf);
+                args.fg_color = 0xE;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                break;
+            case 1:
+                args.buf = "find: cannot find '";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = filename.buf;
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "': No such file or directory";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                break;
+        }
     }
 }
