@@ -1,1 +1,7 @@
-*.o
+bin/*.o
+bin/*.iso
+bin/iso/
+bin/kernel
+bin/inserter
+bin/shell
+bin/shell_elf
