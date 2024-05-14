@@ -128,7 +128,8 @@ void create_path() {
     currentDirPath = create_path_recursive(cluster);
 }
 
-void set_current_cluster() {
+void set_current_cluster() {    
+    // Set currentDirCluster
     struct FAT32DirectoryEntry curr_entry = currentDir.table[0];
     currentDirCluster = (curr_entry.cluster_high << 16) | curr_entry.cluster_low;
 }
