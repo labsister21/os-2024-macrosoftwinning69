@@ -303,7 +303,7 @@ void syscall(struct InterruptFrame frame) {
 
         // SYSCALL 16
         case SYSCALL_READ_CLUSTER:
-            read_clusters((struct ClusterBuffer*) frame.cpu.general.ecx, frame.cpu.general.ebx, 1);
+            read_clusters((struct ClusterBuffer*) frame.cpu.general.ebx, frame.cpu.general.ecx, 1);
             break;
 
         // SYSCALL 17

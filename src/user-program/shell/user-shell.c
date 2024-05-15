@@ -340,6 +340,7 @@ int main(void) {
     };
     syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
     set_current_cluster();
+    create_path();
 
     // Behavior variables
     char buf;
@@ -525,7 +526,7 @@ void mkdir(struct StringN folder_Name){
     // request.name[sizeof(request.name)-1] = '';
 }
 void cd(struct StringN folder) {
-    if (strcmp(folder.buf, "..") == 0) {
+    if (strcmp(folder.buf, "..") == true) {
         struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
         uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
 
@@ -544,22 +545,33 @@ void cd(struct StringN folder) {
         struct FAT32DirectoryTable table = currentDir;
         for (int i = 2; i < 64; i++) {
             struct FAT32DirectoryEntry entry = table.table[i];
-            if (entry.name[0] == '\0') {
-                break;
-            }
-            if (strcmp(entry.name, folder.buf) == 0) {
-                uint32_t cluster = (entry.cluster_high << 16) | entry.cluster_low;
+            // if (entry.name[0] == '\0') {
+            //     break;
+            // }
+            if (strcmp(entry.name, folder.buf) == true && strcmp(entry.ext, "\0\0\0") == true) {
+                // uint32_t cluster = (entry.cluster_high << 16) | entry.cluster_low;
+                
+                // Construct FAT32DriverRequest
                 struct FAT32DriverRequest request = {
                     .buf = &currentDir,
-                    .name = *entry.name,
-                    .ext = *entry.ext,
-                    .parent_cluster_number = cluster,
+                    .ext = "\0\0\0",
+                    .parent_cluster_number = currentDirCluster,
                     .buffer_size = sizeof(struct FAT32DirectoryTable)
                     {}
                 };
-                syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
-                set_current_cluster();
 
+                // Set request name
+                for (uint8_t i = 0; i < folder.len; i++) {
+                    request.name[i] = folder.buf[i];
+                }
+
+                // Read new directory to currentDir
+                uint32_t retcode;
+                syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) &retcode, 0);
+                retcode++;
+
+                // Set new current cluster
+                set_current_cluster();
                 create_path();
                 return;
             }

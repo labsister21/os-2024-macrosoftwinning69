@@ -43,8 +43,7 @@ void create_bg() {
 void kernel_setup(void) {
     // Test paging
     // paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x600000);
-    // paging_free_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x700000);
-    // *((uint8_t*) 0x500000) = 1;
+    // *((uint8_t*) 0x900000) = 1;
 
     // Load GDT
     load_gdt(&_gdt_gdtr);
