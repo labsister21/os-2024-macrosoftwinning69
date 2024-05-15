@@ -98,11 +98,34 @@ void puts(struct SyscallPutsArgs args) {
     
     while (count && *buf != '\0') {
         if (*buf == '\n') {     // enter
-            if (!(keyboard_state.row == keyboard_state.down_limit)) {
+            // Handler untuk di baris terakhir
+            if (keyboard_state.row == keyboard_state.down_limit) {
+                // Set limits
+                uint8_t up = keyboard_state.up_limit;
+                uint8_t down = keyboard_state.down_limit;
+                uint8_t left = keyboard_state.left_limit;
+                uint8_t right = keyboard_state.right_limit;
+
+                // Scroll up
+                for (int i = up; i < down; i++) {
+                    for (int j = left; j < right + 1; j++) {
+                        char c = FRAMEBUFFER_MEMORY_OFFSET[((i + 1) * 80 + j) * 2];
+                        char fg = FRAMEBUFFER_MEMORY_OFFSET[((i + 1) * 80 + j) * 2 + 1] & 0x0F;
+                        char bg = FRAMEBUFFER_MEMORY_OFFSET[((i + 1) * 80 + j) * 2 + 1] >> 4;
+
+                        framebuffer_write(i, j, c, fg, bg);
+                    }
+                }
+                for (int j = left; j < right + 1; j++) {
+                    framebuffer_write(down, j, ' ', 0x07, 0x00);
+                }
+            } else {
                 // maju ke baris berikutnya
                 keyboard_state.row++;
-                keyboard_state.col = keyboard_state.left_limit;
             }
+
+            // Reset col
+            keyboard_state.col = keyboard_state.left_limit;
 
         } else if (*buf == '\b') {  // backspace
             // hapus karakter sebelumnya jika buffer tidak kosong
@@ -205,42 +228,48 @@ void get_process_info(struct SyscallProcessInfoArgs* args) {
 void syscall(struct InterruptFrame frame) {
     switch (frame.cpu.general.eax) {
         // SYSCALL 0
-        case SYSCALL_READ:
+        case SYSCALL_READ: 
+        ;
             *((int8_t*) frame.cpu.general.ecx) = read(
                 *(struct FAT32DriverRequest*) frame.cpu.general.ebx
             );
             break;
 
         // SYSCALL 1
-        case SYSCALL_READ_DIRECTORY:
+        case SYSCALL_READ_DIRECTORY: 
+        ;
             *((int8_t*) frame.cpu.general.ecx) = read_directory(
                 *(struct FAT32DriverRequest*) frame.cpu.general.ebx
             );
             break;
 
         // SYSCALL 2
-        case SYSCALL_WRITE:
+        case SYSCALL_WRITE: 
+        ;
             *((int8_t*) frame.cpu.general.ecx) = write(
                 *(struct FAT32DriverRequest*) frame.cpu.general.ebx
             );
             break;
 
         // SYSCALL 3
-        case SYSCALL_DELETE:
+        case SYSCALL_DELETE: 
+        ;
             *((int8_t*) frame.cpu.general.ecx) = delete(
                 *(struct FAT32DriverRequest*) frame.cpu.general.ebx
             );
             break;
 
         // SYSCALL 4
-        case SYSCALL_GETCHAR:
+        case SYSCALL_GETCHAR: 
+        ;
             // keyboard_state_activate();
 
             get_keyboard_buffer((char*) frame.cpu.general.ebx);
             break;
 
         // SYSCALL 5
-        case SYSCALL_PUTCHAR:
+        case SYSCALL_PUTCHAR: 
+        ;
             struct SyscallPutsArgs* pointer = (struct SyscallPutsArgs*) frame.cpu.general.ebx;
             pointer->count = 1;
 
@@ -248,41 +277,70 @@ void syscall(struct InterruptFrame frame) {
             break;
 
         // SYSCALL 6
-        case SYSCALL_PUTS:
+        case SYSCALL_PUTS: 
+        ;
             struct SyscallPutsArgs* pointer_puts = (struct SyscallPutsArgs*) frame.cpu.general.ebx;
 
             puts(*pointer_puts);
             break;
 
         // SYSCALL 7
-        case SYSCALL_PUTS_AT:
+        case SYSCALL_PUTS_AT: 
+        ;
             struct SyscallPutsAtArgs* pointer_puts_at = (struct SyscallPutsAtArgs*) frame.cpu.general.ebx;
 
             puts_at(*pointer_puts_at);
             break;
 
         // SYSCALL 8
-        case SYSCALL_ACTIVATE_KEYBOARD:
+        case SYSCALL_ACTIVATE_KEYBOARD: 
+        ;
             keyboard_state_activate();
             break;
 
         // SYSCALL 9
-        case SYSCALL_DEACTIVATE_KEYBOARD:
+        case SYSCALL_DEACTIVATE_KEYBOARD: 
+        ;
             keyboard_state_deactivate();
             break;
 
-        // SYSCALL 11
-        case SYSCALL_KEYBOARD_PRESS_CTRL:
+        // SYSCALL 10
+        case SYSCALL_SET_KEYBOARD_BORDERS: 
+        ;
+            struct SyscallKeyboardBordersArgs* args = (struct SyscallKeyboardBordersArgs*) frame.cpu.general.ebx;
+
+            keyboard_state.up_limit = args->up;
+            keyboard_state.down_limit = args->down;
+            keyboard_state.left_limit = args->left;
+            keyboard_state.right_limit = args->right;
+            break;
+        
+        // SYSCALL 12
+        case SYSCALL_KEYBOARD_PRESS_CTRL: 
+        ;
             *((bool*) frame.cpu.general.ebx) = keyboard_state.press_ctrl;
             break;
 
-        // SYSCALL 12
-        case SYSCALL_CLEAR_SCREEN:
-            framebuffer_clear();
+        // SYSCALL 13
+        case SYSCALL_CLEAR_SCREEN: 
+        ;
+            // Get limits
+            uint8_t up = keyboard_state.up_limit;
+            uint8_t down = keyboard_state.down_limit;
+            uint8_t left = keyboard_state.left_limit;
+            uint8_t right = keyboard_state.right_limit;
+
+            // Clear screen
+            for (int i = up; i < down + 1; i++) {
+                for (int j = left; j < right + 1; j++) {
+                    framebuffer_write(i, j, 0x0, 0x7, 0x0);
+                }
+            }
             break;
 
-        // SYSCALL 13
-        case SYSCALL_SET_CURSOR:
+        // SYSCALL 14
+        case SYSCALL_SET_CURSOR: 
+        ;
             framebuffer_set_cursor(
                 frame.cpu.general.ebx,
                 frame.cpu.general.ecx
@@ -291,33 +349,39 @@ void syscall(struct InterruptFrame frame) {
             keyboard_state.col = frame.cpu.general.ecx;
             break;
 
-        // SYSCALL 14
-        case SYSCALL_GET_CURSOR_ROW:
+        // SYSCALL 15
+        case SYSCALL_GET_CURSOR_ROW: 
+        ;
             *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.row;
             break;
 
-        // SYSCALL 15
-        case SYSCALL_GET_CURSOR_COL:
+        // SYSCALL 16
+        case SYSCALL_GET_CURSOR_COL: 
+        ;
             *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.col;
             break;
 
-        // SYSCALL 16
-        case SYSCALL_READ_CLUSTER:
+        // SYSCALL 17
+        case SYSCALL_READ_CLUSTER: 
+        ;
             read_clusters((struct ClusterBuffer*) frame.cpu.general.ebx, frame.cpu.general.ecx, 1);
             break;
 
-        // SYSCALL 17
-        case SYSCALL_TERMINATE_PROCESS:
+        // SYSCALL 18
+        case SYSCALL_TERMINATE_PROCESS: 
+        ;
             process_destroy(process_manager_state.current_running_pid);
             break;
 
-        // SYSCALL 18
-        case SYSCALL_GET_MAX_PROCESS_COUNT:
+        // SYSCALL 19
+        case SYSCALL_GET_MAX_PROCESS_COUNT: 
+        ;
             *((uint32_t*) frame.cpu.general.ebx) = PROCESS_COUNT_MAX;
             break;
 
-        // SYSCALL 19
-        case SYSCALL_GET_PROCESS_INFO:
+        // SYSCALL 20
+        case SYSCALL_GET_PROCESS_INFO: 
+        ;
             get_process_info((struct SyscallProcessInfoArgs*) frame.cpu.general.ebx);
             break;
     }

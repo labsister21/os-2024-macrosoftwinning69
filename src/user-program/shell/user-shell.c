@@ -26,10 +26,10 @@ struct StringN currentDirPath;
 uint32_t currentDirCluster;
 
 // Shell properties
-#define SHELL_WINDOW_UPPER_HEIGHT 0
-#define SHELL_WINDOW_LOWER_HEIGHT 24
-#define SHELL_WINDOW_LEFT_WIDTH 0
-#define SHELL_WINDOW_RIGHT_WIDTH 79
+#define SHELL_WINDOW_UPPER_HEIGHT 2
+#define SHELL_WINDOW_LOWER_HEIGHT 21
+#define SHELL_WINDOW_LEFT_WIDTH 2
+#define SHELL_WINDOW_RIGHT_WIDTH 77
 
 // Shell commands
 #define SHELL_CD "cd"
@@ -186,7 +186,7 @@ void shell_create_bg() {
     syscall(SYSCALL_PUTS_AT, (uint32_t) &welcome3, 0, 0);
 
     // Set cursor   
-    syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+    syscall(SYSCALL_SET_CURSOR, 10, 8, 0);
 }
 
 void shell_print_prompt() {
@@ -299,7 +299,7 @@ void shell_input_handler(struct StringN input) {
 
     } else if (strcmp(command, SHELL_CLEAR)) {
         syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
-        syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+        syscall(SYSCALL_SET_CURSOR, SHELL_WINDOW_UPPER_HEIGHT, SHELL_WINDOW_LEFT_WIDTH, 0);
         shell_print_prompt();
     } else if (strcmp(command, SHELL_OKEGAS)) {
         struct SyscallPutsArgs args = {
@@ -329,6 +329,15 @@ int main(void) {
 
     // Create shell background
     shell_create_bg();
+
+    // Set shell border limits
+    struct SyscallKeyboardBordersArgs borders = {
+        .up = SHELL_WINDOW_UPPER_HEIGHT,
+        .down = SHELL_WINDOW_LOWER_HEIGHT,
+        .left = SHELL_WINDOW_LEFT_WIDTH,
+        .right = SHELL_WINDOW_RIGHT_WIDTH
+    };
+    syscall(SYSCALL_SET_KEYBOARD_BORDERS, (uint32_t) &borders, 0, 0);
 
     // Load root directory
     struct FAT32DriverRequest request = {
@@ -372,9 +381,71 @@ int main(void) {
                 // Set shell to open
                 shell_status.is_open = true;
 
+                // Get border limits
+                uint8_t up = SHELL_WINDOW_UPPER_HEIGHT;
+                // uint8_t down = SHELL_WINDOW_LOWER_HEIGHT;
+                uint8_t left = SHELL_WINDOW_LEFT_WIDTH;
+                uint8_t right = SHELL_WINDOW_RIGHT_WIDTH;
+
                 // Clear screen and print prompt
                 syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
-                syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+                syscall(SYSCALL_SET_CURSOR, up - 1, left, 0);
+
+                // Print window header
+                for (int j = left; j < right + 1; j++) {
+                    struct SyscallPutsArgs args = {
+                        .buf = " ",
+                        .count = 1,
+                        .fg_color = 0x0,
+                        .bg_color = BIOS_DARK_GRAY
+                    };
+
+                    syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                }
+
+                // Print window title
+                struct SyscallPutsAtArgs title = {
+                    .buf = "Shell",
+                    .count = strlen(title.buf),
+                    .fg_color = BIOS_WHITE,
+                    .bg_color = BIOS_DARK_GRAY,
+                    .row = up - 1,
+                    .col = left + 3
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &title, 0, 0);
+
+                // Print window buttons
+                struct SyscallPutsAtArgs x = {
+                    .buf = " X ",
+                    .count = 3,
+                    .fg_color = BIOS_BLACK,
+                    .bg_color = BIOS_RED,
+                    .row = up - 1,
+                    .col = right - 2
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &x, 0, 0);
+
+                struct SyscallPutsAtArgs O = {
+                    .buf = " O ",
+                    .count = 3,
+                    .fg_color = BIOS_BLACK,
+                    .bg_color = BIOS_YELLOW,
+                    .row = up - 1,
+                    .col = right - 5
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &O, 0, 0);
+
+                struct SyscallPutsAtArgs m = {
+                    .buf = " _ ",
+                    .count = 3,
+                    .fg_color = BIOS_BLACK,
+                    .bg_color = BIOS_LIGHT_GREEN,
+                    .row = up - 1,
+                    .col = right - 8
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &m, 0, 0);
+
+                // Print shell prompt
                 shell_print_prompt();
             }
         } else {
