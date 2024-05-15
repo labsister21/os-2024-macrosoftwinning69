@@ -94,7 +94,27 @@ user-shell:
 	@size --target=binary bin/shell
 	@rm -f *.o
 
+CLOCK_FOLDER = $(USER_PROGRAM_FOLDER)/clock
 
-insert-shell: inserter user-shell
-	@echo Inserting shell into root directory...
+user-clock:
+# ASM
+	@$(ASM) $(AFLAGS) $(USER_PROGRAM_FOLDER)/crt0.s -o crt0.o
+# CC
+	@$(CC)  $(CFLAGS) -fno-pie $(USER_PROGRAM_FOLDER)/string.c -o stdmem.o
+	@$(CC)  $(CFLAGS) -fno-pie $(CLOCK_FOLDER)/clock.c -o clock.o
+# LIN
+	@$(LIN) -T $(CLOCK_FOLDER)/clock-linker.ld -melf_i386 --oformat=binary \
+		crt0.o clock.o stdmem.o -o $(OUTPUT_FOLDER)/clock
+	@echo Linking object clock object files and generate flat binary...
+	@$(LIN) -T $(CLOCK_FOLDER)/clock-linker.ld -melf_i386 --oformat=elf32-i386\
+		crt0.o clock.o stdmem.o -o $(OUTPUT_FOLDER)/clock_elf
+# Misc
+	@echo Linking object clock object files and generate ELF32 for debugging...
+	@size --target=binary bin/clock
+	@rm -f *.o
+
+insert-shell: inserter user-shell user-clock
+	@echo Inserting shell into bin directory...
 		@cd $(OUTPUT_FOLDER); ./inserter shell 5 $(DISK_NAME).bin
+	@echo Inserting clock into bin directory...
+		@cd $(OUTPUT_FOLDER); ./inserter clock 5 $(DISK_NAME).bin

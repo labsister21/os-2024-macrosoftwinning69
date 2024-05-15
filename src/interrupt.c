@@ -7,6 +7,7 @@
 #include "header/kernel-entrypoint.h"
 #include "header/process/process.h"
 #include "header/scheduler/scheduler.h"
+#include "header/clock/cmos.h"
 #include "user-program/SYSCALL_LIBRARY.h"
 
 #include "user-program/utils.h"
@@ -520,15 +521,34 @@ void syscall(struct InterruptFrame frame) {
             break;
 
         // SYSCALL 19
+        case SYSCALL_CREATE_PROCESS:
+        ;
+            *((int32_t*) frame.cpu.general.ecx) = process_create_user_process(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
+            break;
+
+        // SYSCALL 20
         case SYSCALL_GET_MAX_PROCESS_COUNT: 
         ;
             *((uint32_t*) frame.cpu.general.ebx) = PROCESS_COUNT_MAX;
             break;
 
-        // SYSCALL 20
+        // SYSCALL 21
         case SYSCALL_GET_PROCESS_INFO: 
         ;
             get_process_info((struct SyscallProcessInfoArgs*) frame.cpu.general.ebx);
+            break;
+
+        // SYSCALL 22
+        case SYSCALL_GET_CLOCK_TIME:
+        ;
+            struct SyscallClockTimeArgs* clock_args = (struct SyscallClockTimeArgs*) frame.cpu.general.ebx;
+
+            clock_args->hour = get_hour();
+            clock_args->minute = get_minute();
+            clock_args->second = get_second();
+
             break;
 
         // SYSCALL 25

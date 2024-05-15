@@ -21,8 +21,10 @@
 #define SYSCALL_GET_CURSOR_COL          16
 #define SYSCALL_READ_CLUSTER            17
 #define SYSCALL_TERMINATE_PROCESS       18
-#define SYSCALL_GET_MAX_PROCESS_COUNT   19
-#define SYSCALL_GET_PROCESS_INFO        20
+#define SYSCALL_CREATE_PROCESS          19
+#define SYSCALL_GET_MAX_PROCESS_COUNT   20
+#define SYSCALL_GET_PROCESS_INFO        21
+#define SYSCALL_GET_CLOCK_TIME          22
 #define SYSCALL_FIND_FILE               25
 
 // BIOS colors
@@ -85,6 +87,12 @@ struct SyscallProcessInfoArgs {
 
     // Memory
     uint32_t page_frame_used_count;
+};
+
+struct SyscallClockTimeArgs {
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
 };
 
 #endif

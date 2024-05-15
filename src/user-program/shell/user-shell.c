@@ -46,6 +46,7 @@ uint32_t currentDirCluster;
 #define SHELL_OKEGAS "okegas"
 
 // Shell process commands
+#define SHELL_EXEC "exec"
 #define SHELL_PS "ps"
 
 // Definisi shell commands
@@ -58,10 +59,10 @@ void rm(struct StringN folder);
 // Definisi command cat
 void cat(struct StringN filename);
 //Definisi command find
-void find(struct StringN filename);
-
+// void find(struct StringN filename);
 
 // Definisi process commands
+void exec(struct StringN filename);
 void ps();
 
 // System call function
@@ -299,7 +300,7 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_MV)) {
 
     } else if (strcmp(command, SHELL_FIND)) {
-        find(arg1);
+        // find(arg1);
     } else if (strcmp(command, SHELL_CLEAR)) {
         syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
         syscall(SYSCALL_SET_CURSOR, SHELL_WINDOW_UPPER_HEIGHT, SHELL_WINDOW_LEFT_WIDTH, 0);
@@ -314,6 +315,8 @@ void shell_input_handler(struct StringN input) {
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
     } else if (strcmp(command, SHELL_PS)) {
         ps();
+    } else if (strcmp(command, SHELL_EXEC)) {
+        exec(arg1);
     } else {
         struct SyscallPutsArgs args = {
             .buf = "Unknown command! Please enter another command.",
@@ -811,32 +814,32 @@ void cat(struct StringN filename) {
 }
 
 // Find
-void find_recursive(struct FAT32DirectoryTable dir_table, struct StringN name, struct StringN path, bool found) {
-    for (uint8_t i = 2; i < 64; i++) {
-        struct FAT32DirectoryEntry entry = dir_table.table[i];
+// void find_recursive(struct FAT32DirectoryTable dir_table, struct StringN name, struct StringN path, bool found) {
+//     for (uint8_t i = 2; i < 64; i++) {
+//         struct FAT32DirectoryEntry entry = dir_table.table[i];
         
-        // Skip if entry is empty
-        if (entry.user_attribute == UATTR_EMPTY) continue;
+//         // Skip if entry is empty
+//         if (entry.user_attribute == UATTR_EMPTY) continue;
 
-        // Skip if entry name is not equal
-        if (strcmp(entry.name, name.buf) == false) continue;
+//         // Skip if entry name is not equal
+//         if (strcmp(entry.name, name.buf) == false) continue;
 
         
-        struct StringN new_path;
-        stringn_create(&new_path);
-        stringn_appendstr(&new_path, entry.name);
-    }
-}
+//         struct StringN new_path;
+//         stringn_create(&new_path);
+//         stringn_appendstr(&new_path, entry.name);
+//     }
+// }
 
-void find(struct StringN filename) {
-    struct StringN path;
-    stringn_create(&path);
+// void find(struct StringN filename) {
+//     struct StringN path;
+//     stringn_create(&path);
 
-    stringn_appendstr(&path, "./");
+//     stringn_appendstr(&path, "./");
 
-    bool found = false;
-    find_recursive(currentDir, filename, path, &found);
-}
+//     bool found = false;
+//     find_recursive(currentDir, filename, path, &found);
+// }
 
 // void find(struct StringN filename){
 //     struct FAT32DriverRequest request = {
@@ -910,6 +913,77 @@ void find(struct StringN filename) {
 //         }
 //     }
 // }
+
+// exec
+void exec(struct StringN filename) {
+    // Construct FAT32DriverRequest
+    struct FAT32DriverRequest request = {
+        .name = "\0\0\0\0\0\0\0\0",
+        .parent_cluster_number = 5,
+        .buffer_size = 0x100000,
+    };
+
+    // Fill request name
+    for (uint8_t i = 0; i < filename.len; i++) {
+        request.name[i] = filename.buf[i];
+    }
+
+    // Create process
+    int8_t retcode;
+    syscall(SYSCALL_CREATE_PROCESS, (uint32_t) &request, (uint32_t) &retcode, 0);
+
+    // Handle return code
+    switch (retcode) {
+        case 0:
+            struct SyscallPutsArgs args_0 = {
+                .buf = "Process created successfully!",
+                .count = strlen(args_0.buf),
+                .fg_color = BIOS_YELLOW,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_0, 0, 0);
+            break;
+        case 1:
+            struct SyscallPutsArgs args_1 = {
+                .buf = "Exec error: Max process count reached!",
+                .count = strlen(args_1.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_1, 0, 0);
+            break;
+
+        case 2:
+            struct SyscallPutsArgs args_2 = {
+                .buf = "Exec error: Invalid entrypoint!",
+                .count = strlen(args_2.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_2, 0, 0);
+            break;
+
+        case 3:
+            struct SyscallPutsArgs args_3 = {
+                .buf = "Exec error: Not enough memory!",
+                .count = strlen(args_3.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_3, 0, 0);
+            break;
+
+        case 4:
+            struct SyscallPutsArgs args_4 = {
+                .buf = "Exec error: File not found in bin folder!",
+                .count = strlen(args_4.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_4, 0, 0);
+            break;
+    }
+}
 
 // ps
 void ps() {
