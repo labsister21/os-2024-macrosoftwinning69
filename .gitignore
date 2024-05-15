@@ -5,3 +5,5 @@ bin/kernel
 bin/inserter
 bin/shell
 bin/shell_elf
+bin/clock
+bin/clock_elf
