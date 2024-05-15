@@ -23,6 +23,7 @@
 #define SYSCALL_TERMINATE_PROCESS       18
 #define SYSCALL_GET_MAX_PROCESS_COUNT   19
 #define SYSCALL_GET_PROCESS_INFO        20
+#define SYSCALL_FIND_FILE               25
 
 // BIOS colors
 #define BIOS_BLACK                     0x0

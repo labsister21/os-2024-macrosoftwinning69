@@ -9,6 +9,49 @@
 #include "header/scheduler/scheduler.h"
 #include "user-program/SYSCALL_LIBRARY.h"
 
+#include "user-program/utils.h"
+
+/**
+ * @brief Function to initiate the search for files or directories in a FAT32 file system.
+ * 
+ * This function initiates the search for files or directories in a FAT32 file system starting
+ * from the root directory.
+ * 
+ * @param request The FAT32 driver request structure containing search parameters.
+ * @return Returns an integer representing the result of the search operation.
+ */
+int8_t find_start(struct FAT32DriverRequest request);
+
+/**
+ * @brief Recursive function to search for files or directories in a FAT32 file system.
+ * 
+ * This function recursively searches for files or directories in a FAT32 file system starting
+ * from a specified directory cluster.
+ * 
+ * @param request The FAT32 driver request structure containing search parameters.
+ * @param path A pointer to a character array to construct the path of the searched files or directories.
+ * @return Returns an integer representing the result of the search operation.
+ */
+int8_t find(struct FAT32DriverRequest request, char* path);
+
+/**
+ * Add source data to destination data
+ * 
+ * @param dest Pointer to destination memory
+ * @param src Pointer to source memory
+ * @param dest_size Destination memory size in byte
+ * @param src_size Source memory size in byte
+*/
+void* memadd(void* restrict dest, const void* restrict src, size_t size1, size_t size2);
+
+/**
+ * Append string to buffer
+ * 
+ * @param buffer Pointer to buffer
+ * @param str Pointer to string
+*/
+void append_to_buffer(void *buffer, const char *str);
+
 void io_wait(void) {
     out(0x80, 0);
 }
@@ -182,6 +225,109 @@ void puts_at(struct SyscallPutsAtArgs args) {
         col++;
         count--;
     }
+}
+
+int8_t find_start(struct FAT32DriverRequest request){
+    char dot = '.';
+    char path[512];
+    memset(path, 0, 512);
+    memcpy(path,&dot,1);
+    int8_t path_length = find (request, path);
+
+    if(path_length == 0){
+        return 1;
+    }
+    return 0;
+}
+
+int8_t find(struct FAT32DriverRequest request, char* path){
+    int8_t path_length = 0;
+
+    char newline = '\n';
+    char slash = '/';
+
+    struct FAT32DirectoryTable dir_table;
+    read_clusters(&dir_table, request.parent_cluster_number, 1);
+
+    memadd(path, &slash,strlen(path),1);
+    memadd(path, dir_table.table[0].name, strlen(path),8);
+
+    for(unsigned int i = 2; i < CLUSTER_SIZE/sizeof(struct FAT32DirectoryEntry); i++){
+        if(memcmp(dir_table.table[i].name, request.name, 8) == 0){
+           path_length++;
+           if(dir_table.table[i].attribute == ATTR_SUBDIRECTORY){
+                memadd(path,&slash,strlen(path),1);
+                memadd(path,dir_table.table[i].name, strlen(path),8);
+                path[strlen(path)] = '\0';
+
+                append_to_buffer(request.buf,path);
+                append_to_buffer(request.buf,&newline);
+                return path_length;
+           }
+           else{
+                char TempPath[512];
+                memset(TempPath, 0, 512);
+                memcpy(TempPath,path,strlen(path));
+
+                char slash = '/';
+                memadd(TempPath, &slash, strlen(TempPath),1);
+                memadd(TempPath, dir_table.table[i].name, strlen(TempPath),8);
+                TempPath[strlen(TempPath)] = '\0';
+
+                if(dir_table.table[i].ext[0]  != 0x0){
+                    char dot = '.';
+                    memadd(TempPath, &dot, strlen(TempPath),1);
+                    memadd(TempPath, dir_table.table[i].ext, strlen(TempPath),3);
+                }
+                append_to_buffer(request.buf,TempPath);
+                append_to_buffer(request.buf,&newline);
+                // return path_length;                
+           }
+        }
+
+        if(dir_table.table[i].attribute == ATTR_SUBDIRECTORY && dir_table.table[i].name[0] != (uint8_t) 0x0) {
+            struct FAT32DriverRequest new_request = {
+                .parent_cluster_number = dir_table.table[i].cluster_low,
+                .buffer_size = request.buffer_size,
+                .buf = request.buf,
+            };
+
+            memcpy(new_request.name, request.name, 8);
+            memcpy(new_request.ext, request.ext, 3);
+
+            char TempPath[512];
+            memset(TempPath, 0, 512);
+            memcpy(TempPath,path,strlen(path));
+
+            int8_t code = find(new_request,TempPath);
+            path_length += code;
+            memcpy(request.buf, new_request.buf, request.buffer_size);
+        }
+    }
+    return path_length;
+}
+
+void* memadd(void* restrict dest, const void* restrict src, size_t size1, size_t size2){
+    uint8_t *destbuf = (uint8_t*) dest;
+    memcpy(destbuf,dest,size1);
+    const uint8_t *srcbuf = (const uint8_t*) src;
+    for (size_t i = 0; i < size2; i++)
+    {
+        destbuf[i+size1] = srcbuf[i];
+    }
+    return destbuf;
+}
+
+// Function to append a string to a buffer
+void append_to_buffer(void *buffer, const char *str) {
+    char *buf = (char *)buffer;
+    while (*buf != '\0') {
+        buf++;
+    }
+    while (*str != '\0') {
+        *buf++ = *str++;
+    }
+    *buf = '\0';
 }
 
 void get_process_info(struct SyscallProcessInfoArgs* args) {
@@ -383,6 +529,14 @@ void syscall(struct InterruptFrame frame) {
         case SYSCALL_GET_PROCESS_INFO: 
         ;
             get_process_info((struct SyscallProcessInfoArgs*) frame.cpu.general.ebx);
+            break;
+
+        // SYSCALL 25
+        case SYSCALL_FIND_FILE:
+        ;
+            *((int8_t*) frame.cpu.general.ecx) = find_start(
+                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
+            );
             break;
     }
 }
