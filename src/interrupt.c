@@ -545,10 +545,7 @@ void syscall(struct InterruptFrame frame) {
         ;
             struct SyscallClockTimeArgs* clock_args = (struct SyscallClockTimeArgs*) frame.cpu.general.ebx;
 
-            clock_args->hour = get_hour();
-            clock_args->minute = get_minute();
-            clock_args->second = get_second();
-
+            read_rtc(clock_args);
             break;
 
         // SYSCALL 25

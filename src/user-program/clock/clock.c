@@ -41,7 +41,7 @@ int main(void) {
 
         // Hour
         uint8_t hour = clock_time.hour;
-        stringn_appendstr(&time_str, itoa[hour]);
+        stringn_appendstr(&time_str, itoa[hour + 7]);
 
         // Separator
         stringn_appendstr(&time_str, ":");
@@ -57,6 +57,28 @@ int main(void) {
         uint8_t second = clock_time.second;
         stringn_appendstr(&time_str, itoa[second]);
 
+        // Print clock date
+        struct StringN date_str;
+        stringn_create(&date_str);
+
+        // Day
+        uint8_t day = clock_time.day;
+        stringn_appendstr(&date_str, itoa[day]);
+
+        // Separator
+        stringn_appendstr(&date_str, "/");
+
+        // Month
+        uint8_t month = clock_time.month;
+        stringn_appendstr(&date_str, itoa[month]);
+
+        // Separator
+        stringn_appendstr(&date_str, "/");
+
+        // Year
+        uint8_t year = clock_time.year;
+        stringn_appendstr(&date_str, itoa[year]);
+
         // Print to screen
         struct SyscallPutsAtArgs time = {
             .buf = time_str.buf,
@@ -67,5 +89,15 @@ int main(void) {
             .col = 71,
         };
         syscall(SYSCALL_PUTS_AT, (uint32_t)&time, 0, 0);
+
+        struct SyscallPutsAtArgs date = {
+            .buf = date_str.buf,
+            .count = date_str.len,
+            .fg_color = BIOS_BLACK,
+            .bg_color = BIOS_LIGHT_CYAN,
+            .row = 23,
+            .col = 71,
+        };
+        syscall(SYSCALL_PUTS_AT, (uint32_t)&date, 0, 0);
     }
 }

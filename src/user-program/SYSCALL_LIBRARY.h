@@ -90,9 +90,13 @@ struct SyscallProcessInfoArgs {
 };
 
 struct SyscallClockTimeArgs {
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
+    unsigned char hour;
+    unsigned char minute;
+    unsigned char second;
+
+    unsigned char day;
+    unsigned char month;
+    unsigned char year;
 };
 
 #endif
