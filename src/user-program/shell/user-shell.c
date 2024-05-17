@@ -387,6 +387,9 @@ int main(void) {
                 // Set shell to open
                 shell_status.is_open = true;
 
+                // Set kernel shell open variable
+                syscall(SYSCALL_SET_IS_SHELL_OPEN, (uint32_t) shell_status.is_open, 0, 0);
+
                 // Get border limits
                 uint8_t up = SHELL_WINDOW_UPPER_HEIGHT;
                 // uint8_t down = SHELL_WINDOW_LOWER_HEIGHT;
@@ -459,6 +462,9 @@ int main(void) {
             if (press_ctrl && buf == 's') {
                 // Set shell to open
                 shell_status.is_open = false;
+
+                // Set kernel shell open variable
+                syscall(SYSCALL_SET_IS_SHELL_OPEN, (uint32_t) shell_status.is_open, 0, 0);
 
                 // Create background
                 shell_create_bg();

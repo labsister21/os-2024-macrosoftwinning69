@@ -372,6 +372,12 @@ void get_process_info(struct SyscallProcessInfoArgs* args) {
     }
 }
 
+struct {
+    bool shell_open;
+} user_variables = {
+    .shell_open = false,
+};
+
 void syscall(struct InterruptFrame frame) {
     switch (frame.cpu.general.eax) {
         // SYSCALL 0
@@ -452,6 +458,17 @@ void syscall(struct InterruptFrame frame) {
             break;
 
         // SYSCALL 10
+        case SYSCALL_GET_KEYBOARD_BORDERS:
+        ;
+            struct SyscallKeyboardBordersArgs* args_get = (struct SyscallKeyboardBordersArgs*) frame.cpu.general.ebx;
+
+            args_get->up = keyboard_state.up_limit;
+            args_get->down = keyboard_state.down_limit;
+            args_get->left = keyboard_state.left_limit;
+            args_get->right = keyboard_state.right_limit;
+            break;
+        
+        // SYSCALL 11
         case SYSCALL_SET_KEYBOARD_BORDERS: 
         ;
             struct SyscallKeyboardBordersArgs* args = (struct SyscallKeyboardBordersArgs*) frame.cpu.general.ebx;
@@ -462,13 +479,13 @@ void syscall(struct InterruptFrame frame) {
             keyboard_state.right_limit = args->right;
             break;
         
-        // SYSCALL 12
+        // SYSCALL 13
         case SYSCALL_KEYBOARD_PRESS_CTRL: 
         ;
             *((bool*) frame.cpu.general.ebx) = keyboard_state.press_ctrl;
             break;
 
-        // SYSCALL 13
+        // SYSCALL 14
         case SYSCALL_CLEAR_SCREEN: 
         ;
             // Get limits
@@ -485,7 +502,7 @@ void syscall(struct InterruptFrame frame) {
             }
             break;
 
-        // SYSCALL 14
+        // SYSCALL 15
         case SYSCALL_SET_CURSOR: 
         ;
             framebuffer_set_cursor(
@@ -496,31 +513,31 @@ void syscall(struct InterruptFrame frame) {
             keyboard_state.col = frame.cpu.general.ecx;
             break;
 
-        // SYSCALL 15
+        // SYSCALL 16
         case SYSCALL_GET_CURSOR_ROW: 
         ;
             *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.row;
             break;
 
-        // SYSCALL 16
+        // SYSCALL 17
         case SYSCALL_GET_CURSOR_COL: 
         ;
             *((uint8_t*) frame.cpu.general.ebx) = keyboard_state.col;
             break;
 
-        // SYSCALL 17
+        // SYSCALL 18
         case SYSCALL_READ_CLUSTER: 
         ;
             read_clusters((struct ClusterBuffer*) frame.cpu.general.ebx, frame.cpu.general.ecx, 1);
             break;
 
-        // SYSCALL 18
+        // SYSCALL 19
         case SYSCALL_TERMINATE_PROCESS: 
         ;
             process_destroy(process_manager_state.current_running_pid);
             break;
 
-        // SYSCALL 19
+        // SYSCALL 20
         case SYSCALL_CREATE_PROCESS:
         ;
             *((int32_t*) frame.cpu.general.ecx) = process_create_user_process(
@@ -528,27 +545,39 @@ void syscall(struct InterruptFrame frame) {
             );
             break;
 
-        // SYSCALL 20
+        // SYSCALL 21
         case SYSCALL_GET_MAX_PROCESS_COUNT: 
         ;
             *((uint32_t*) frame.cpu.general.ebx) = PROCESS_COUNT_MAX;
             break;
 
-        // SYSCALL 21
+        // SYSCALL 22
         case SYSCALL_GET_PROCESS_INFO: 
         ;
             get_process_info((struct SyscallProcessInfoArgs*) frame.cpu.general.ebx);
             break;
 
-        // SYSCALL 22
+        // SYSCALL 23
         case SYSCALL_GET_CLOCK_TIME:
         ;
             struct SyscallClockTimeArgs* clock_args = (struct SyscallClockTimeArgs*) frame.cpu.general.ebx;
 
             read_rtc(clock_args);
             break;
+        
+        // SYSCALL 24
+        case SYSCALL_GET_IS_SHELL_OPEN:
+        ;
+            *((bool*) frame.cpu.general.ebx) = user_variables.shell_open;
+            break;
 
         // SYSCALL 25
+        case SYSCALL_SET_IS_SHELL_OPEN:
+        ;
+            user_variables.shell_open = (bool) frame.cpu.general.ebx;
+            break;
+
+        // SYSCALL 30
         case SYSCALL_FIND_FILE:
         ;
             *((int8_t*) frame.cpu.general.ecx) = find_start(
