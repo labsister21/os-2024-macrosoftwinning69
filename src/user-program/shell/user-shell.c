@@ -4,13 +4,6 @@
 #include "../utils.h"
 #include "shell-background.h"
 
-// #define BLOCK_COUNT 16
-
-// static uint32_t currenDir = ROOT_CLUSTER_NUMBER;
-// static struct FAT32DirectoryTable curTable;
-// static char curDirName[300] = "/\0";
-// static struct FAT32DirectoryTable rootTable;
-
 // Itoa table
 char* itoa[] = {
     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
@@ -31,7 +24,7 @@ uint32_t currentDirCluster;
 #define SHELL_WINDOW_LEFT_WIDTH 2
 #define SHELL_WINDOW_RIGHT_WIDTH 77
 
-// Shell commands
+// Shell (specification) commands
 #define SHELL_CD "cd"
 #define SHELL_LS "ls"
 #define SHELL_MKDIR "mkdir"
@@ -41,27 +34,24 @@ uint32_t currentDirCluster;
 #define SHELL_MV "mv"
 #define SHELL_FIND "find"
 
+// Shell (additional commands)
 #define SHELL_CLEAR "clear"
-
 #define SHELL_OKEGAS "okegas"
 
-// Shell process commands
+// Shell (process) commands
 #define SHELL_EXEC "exec"
 #define SHELL_PS "ps"
 
-// Definisi shell commands
-// Definisi command mkdir (Make Directory)
-void mkdir(struct StringN folder_Name);
-// Definisi command cd (Change Directory)
+// Shell commands definitions
 void cd(struct StringN folder);
-// Definisi command rm (remove)
+void ls();
+void mkdir(struct StringN folder_Name);
 void rm(struct StringN folder);
-// Definisi command cat
 void cat(struct StringN filename);
-//Definisi command find
+
 // void find(struct StringN filename);
 
-// Definisi process commands
+// Shell process commands definitions
 void exec(struct StringN filename);
 void ps();
 
@@ -76,23 +66,19 @@ void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
     __asm__ volatile("int $0x30");
 }
 
-// void sys_mkdir(const char* path) {
-//     syscall(9, (uint32_t) path, strlen(path), 0);
-// }
-
 // Shell status
 struct ShellStatus {
     bool is_open;
     uint8_t del_limit;          // Limit for backspace
     uint8_t shell_row;
 };
-
 struct ShellStatus shell_status = {
     .is_open = false,
     .shell_row = 0
 };
 
 // Procedures
+// Recursively create current directory path
 struct StringN create_path_recursive(uint32_t cluster) {
     if (cluster == ROOT_CLUSTER_NUMBER) {
         struct StringN path;
@@ -125,6 +111,7 @@ struct StringN create_path_recursive(uint32_t cluster) {
     return parent_path;
 }
 
+// Create current directory path
 void create_path() {
     struct FAT32DirectoryEntry curr_entry = currentDir.table[0];
     uint32_t cluster = (curr_entry.cluster_high << 16) | curr_entry.cluster_low;
@@ -132,12 +119,14 @@ void create_path() {
     currentDirPath = create_path_recursive(cluster);
 }
 
+// Set current directory cluster
 void set_current_cluster() {    
     // Set currentDirCluster
     struct FAT32DirectoryEntry curr_entry = currentDir.table[0];
     currentDirCluster = (curr_entry.cluster_high << 16) | curr_entry.cluster_low;
 }
 
+// Create shell background
 void shell_create_bg() {
     // Set cursor   
     syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
@@ -193,6 +182,7 @@ void shell_create_bg() {
     syscall(SYSCALL_SET_CURSOR, 10, 8, 0);
 }
 
+// Print shell prompt
 void shell_print_prompt() {
     // Get path and save to currentDirPath
     create_path();
@@ -233,37 +223,7 @@ void shell_print_prompt() {
     syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
 }
 
-// ls command
-void ls(){
-    struct FAT32DirectoryTable table = currentDir;
-    for (int i = 2; i < 64; i++) {
-        // Check if entry is empty
-        struct FAT32DirectoryEntry entry = table.table[i];
-        if (entry.name[0] == '\0') {
-            break;
-        }
-
-        // Print entry name
-        struct SyscallPutsArgs args = {
-            .buf = entry.name,
-            .count = strlen(args.buf),
-            .fg_color = 0x7,
-            .bg_color = 0x0
-        };
-
-        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-
-        // Print space between entries
-        struct SyscallPutsArgs args2 = {
-            .buf = " ",
-            .count = strlen(args2.buf),
-            .fg_color = 0x7,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
-    }
-}
-
+// Handle shell command input
 void shell_input_handler(struct StringN input) {
     // Get 0th argument
     struct StringN arg0;
@@ -531,6 +491,128 @@ int main(void) {
     return 0;
 }
 
+// Shell command implementation
+// cd
+void cd(struct StringN folder) {
+    if (strcmp(folder.buf, "..") == true) {
+        struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
+        uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
+
+        syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, parent_cluster, 0);
+        set_current_cluster();
+
+        create_path();
+    } else {
+        struct FAT32DirectoryTable table = currentDir;
+        for (int i = 2; i < 64; i++) {
+            struct FAT32DirectoryEntry entry = table.table[i];
+            // if (entry.name[0] == '\0') {
+            //     break;
+            // }
+            if (strcmp(entry.name, folder.buf) == true && strcmp(entry.ext, "\0\0\0") == true) {
+                // uint32_t cluster = (entry.cluster_high << 16) | entry.cluster_low;
+                
+                // Construct FAT32DriverRequest
+                struct FAT32DriverRequest request = {
+                    .buf = &currentDir,
+                    .ext = "\0\0\0",
+                    .parent_cluster_number = currentDirCluster,
+                    .buffer_size = sizeof(struct FAT32DirectoryTable)
+                    {}
+                };
+
+                // Set request name
+                for (uint8_t i = 0; i < folder.len; i++) {
+                    request.name[i] = folder.buf[i];
+                }
+
+                // Read new directory to currentDir
+                uint32_t retcode;
+                syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) &retcode, 0);
+                retcode++;
+
+                // Set new current cluster
+                set_current_cluster();
+                create_path();
+                return;
+            }
+        }
+
+        struct SyscallPutsArgs args = {
+            .buf = "Directory not found!",
+            .count = strlen(args.buf),
+            .fg_color = 0xC,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+    }
+}
+
+// ls
+void ls(){
+    struct FAT32DirectoryTable table = currentDir;
+    // Print folder as yellow
+    struct SyscallPutsArgs fold = {
+        .buf = "[folder]",
+        .count = strlen(fold.buf),
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &fold, 0, 0);
+
+    // Print space between folder and file
+    struct SyscallPutsArgs space = {
+        .buf = " ",
+        .count = strlen(space.buf),
+        .fg_color = 0x7,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &space, 0, 0);
+
+    // Print file as light cyan
+    struct SyscallPutsArgs file = {
+        .buf = "[file]\n",
+        .count = strlen(file.buf),
+        .fg_color = BIOS_LIGHT_CYAN,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &file, 0, 0);
+
+    // Print file as blue
+    for (int i = 2; i < 64; i++) {
+        // Check if entry is empty
+        struct FAT32DirectoryEntry entry = table.table[i];
+        if (entry.user_attribute != UATTR_NOT_EMPTY) continue;
+
+        // Print entry name
+        struct SyscallPutsArgs args = {
+            .buf = entry.name,
+            .count = strlen(args.buf),
+            .fg_color = entry.attribute == ATTR_SUBDIRECTORY ? BIOS_YELLOW : BIOS_LIGHT_CYAN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+        // Print space between entries
+        struct SyscallPutsArgs args2 = {
+            .buf = " ",
+            .count = strlen(args2.buf),
+            .fg_color = 0x7,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+    }
+
+    // Print newline
+    struct SyscallPutsArgs newline = {
+        .buf = "\n",
+        .count = strlen(newline.buf),
+        .fg_color = 0x7,
+        .bg_color = 0x0
+    };
+}
+
+// mkdir
 void mkdir(struct StringN folder_Name){
     struct FAT32DriverRequest request = {
         .name = "\0\0\0\0\0\0\0\0",
@@ -608,61 +690,8 @@ void mkdir(struct StringN folder_Name){
     // memcpy(request.name, f, sizeof(request.name));
     // request.name[sizeof(request.name)-1] = '';
 }
-void cd(struct StringN folder) {
-    if (strcmp(folder.buf, "..") == true) {
-        struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
-        uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
 
-        syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, parent_cluster, 0);
-        set_current_cluster();
-
-        create_path();
-    } else {
-        struct FAT32DirectoryTable table = currentDir;
-        for (int i = 2; i < 64; i++) {
-            struct FAT32DirectoryEntry entry = table.table[i];
-            // if (entry.name[0] == '\0') {
-            //     break;
-            // }
-            if (strcmp(entry.name, folder.buf) == true && strcmp(entry.ext, "\0\0\0") == true) {
-                // uint32_t cluster = (entry.cluster_high << 16) | entry.cluster_low;
-                
-                // Construct FAT32DriverRequest
-                struct FAT32DriverRequest request = {
-                    .buf = &currentDir,
-                    .ext = "\0\0\0",
-                    .parent_cluster_number = currentDirCluster,
-                    .buffer_size = sizeof(struct FAT32DirectoryTable)
-                    {}
-                };
-
-                // Set request name
-                for (uint8_t i = 0; i < folder.len; i++) {
-                    request.name[i] = folder.buf[i];
-                }
-
-                // Read new directory to currentDir
-                uint32_t retcode;
-                syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) &retcode, 0);
-                retcode++;
-
-                // Set new current cluster
-                set_current_cluster();
-                create_path();
-                return;
-            }
-        }
-
-        struct SyscallPutsArgs args = {
-            .buf = "Directory not found!",
-            .count = strlen(args.buf),
-            .fg_color = 0xC,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-    }
-}
-
+// rm
 void rm(struct StringN folder){
     struct FAT32DriverRequest request = {
         .name = "\0\0\0\0\0\0\0\0",
