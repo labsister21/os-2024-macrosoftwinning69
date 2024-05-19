@@ -693,7 +693,7 @@ void mkdir(struct StringN folder_Name){
             args.count = strlen(args.buf);
             args.fg_color = 0xE;
             syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-            args.buf = "has been created..";
+            args.buf = " has been created.";
             args.count = strlen(args.buf);
             args.fg_color = 0xE;
             syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -743,7 +743,7 @@ void rm(struct StringN folder){
         .bg_color = 0x0
     };
     if(folder.len > 8){
-        args.buf = "rm: cannot remove: name is too long! Maximum name length is 8 characters.";
+        args.buf = "rm: cannot remove: Name is too long! Maximum name length is 8 characters.";
         args.count = strlen(args.buf);
         args.fg_color = 0xC;
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -772,7 +772,7 @@ void rm(struct StringN folder){
                 args.count = strlen(args.buf);
                 args.fg_color = 0xE;
                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-                args.buf = "has been removed..";
+                args.buf = " has been removed.";
                 args.count = strlen(args.buf);
                 args.fg_color = 0xE;
                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -791,8 +791,26 @@ void rm(struct StringN folder){
                 args.fg_color = 0xC;
                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
                 break;
+
+            case 2:
+                args.buf = "rm: cannot remove '";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = folder.buf;
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "': Directory is not empty";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                break;
         }
     }
+
+    // Update current directory table
+    syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
 }
 
 // meong
