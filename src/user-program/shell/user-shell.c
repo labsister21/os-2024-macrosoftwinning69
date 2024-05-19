@@ -332,6 +332,8 @@ int main(void) {
     struct StringN shell_input;
     stringn_create(&shell_input);
 
+    shell_status.shell_row = SHELL_WINDOW_UPPER_HEIGHT;
+
     // Main program loop
     while (true) {
         // Get if user is pressing ctrl
