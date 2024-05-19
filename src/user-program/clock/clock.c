@@ -178,11 +178,13 @@ void create_clock(struct SyscallClockTimeArgs clock_time) {
             uint8_t abs_col = 55 + col;
 
             uint32_t color;
+            syscall(SYSCALL_GET_IS_SHELL_OPEN, (uint32_t)&shell_open, 0, 0);
+            
             if      (shell_open)                                                color = BIOS_BLACK;
             else if (abs_row == CLOCK_CENTER_Y && abs_col == CLOCK_CENTER_X)    color = BIOS_WHITE;
             else if (is_in(abs_col, abs_row, secondCoordinates))                color = CLOCK_SECOND;
-            else if (is_in(abs_col, abs_row, minuteCoordinates))                color = CLOCK_MINUTE;
             else if (is_in_hour(abs_col, abs_row, hourCoordinates))             color = CLOCK_HOUR;
+            else if (is_in(abs_col, abs_row, minuteCoordinates))                color = CLOCK_MINUTE;
             else                                                                color = CLOCK_BG;
 
             struct SyscallPutsAtArgs args = {
