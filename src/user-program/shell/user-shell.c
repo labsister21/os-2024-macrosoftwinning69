@@ -48,6 +48,7 @@ void ls();
 void mkdir(struct StringN folder_Name);
 void rm(struct StringN folder);
 void cat(struct StringN filename);
+void cp(struct StringN src, struct StringN dest);
 
 // void find(struct StringN filename);
 
@@ -242,6 +243,15 @@ void shell_input_handler(struct StringN input) {
     for (j = 1; ((i + j) < input.len && input.buf[i + j] != ' '); j++) {
         stringn_appendchar(&arg1, input.buf[i + j]);
     }
+
+    // Get 2nd argument
+    struct StringN arg2;
+    stringn_create(&arg2);
+
+    uint32_t k;
+    for (k = 1; ((i + j + k) < input.len && input.buf[i + j + k] != ' '); k++) {
+        stringn_appendchar(&arg2, input.buf[i + j + k]);
+    }
     
     char* command = arg0.buf;
 
@@ -254,7 +264,7 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_CAT)) {
         cat(arg1);
     } else if (strcmp(command, SHELL_CP)) {
-
+        cp(arg1, arg2);
     } else if (strcmp(command, SHELL_RM)) {
         rm(arg1);
     } else if (strcmp(command, SHELL_MV)) {
@@ -943,6 +953,141 @@ void cat(struct StringN filename) {
         default:
             break;
     }
+}
+
+// cp
+void cp(struct StringN src, struct StringN dest) {
+    // If source or destination name is too long, return error
+    if (src.len > 8 || dest.len > 8) {
+        struct SyscallPutsArgs args = {
+            .buf = "cp: cannot copy: Name is too long! Maximum name length is 8 characters.",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Source request
+    uint8_t src_buf[15 * CLUSTER_SIZE];
+    struct FAT32DriverRequest src_req = {
+        .buf = &src_buf,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = 15 * CLUSTER_SIZE
+    };
+
+    for (uint8_t i = 0; i < src.len; i++) {
+        src_req.name[i] = src.buf[i];
+    }
+
+    // Read source
+    int8_t retcode;
+    syscall(SYSCALL_READ, (uint32_t) &src_req, (uint32_t) &retcode, 0);
+
+    // If source file not found, return error
+    switch (retcode) {
+        case 1:
+            struct SyscallPutsArgs not_file = {
+                .buf = "cp error: Source is not a file!",
+                .count = strlen(not_file.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_file, 0, 0);
+            return;
+        case 2:
+            struct SyscallPutsArgs not_found = {
+                .buf = "cp error: Source file is not a found in current directory!",
+                .count = strlen(not_found.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_found, 0, 0);
+            return;
+        case -1:
+            struct SyscallPutsArgs not_enough_size = {
+                .buf = "cp error: Source file is too large!",
+                .count = strlen(not_found.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_enough_size, 0, 0);
+            return;
+        default:
+            break;
+    }
+
+    // Count filesize
+    uint32_t filesize = 0;
+    uint8_t* src_buf_ptr = (uint8_t*) src_req.buf;
+    uint32_t i = 0;
+
+    uint32_t blank_count = 0;
+    while (true) {
+
+        if (src_buf_ptr[i] != '\0') {
+            filesize++;
+            i = filesize * CLUSTER_SIZE;
+            i++;
+        } else if (blank_count == 10) {
+            break;
+        } else {
+            blank_count++;
+        }
+    }
+
+    // Modify src_req for writing
+    src_req.buffer_size = filesize * CLUSTER_SIZE;
+
+    for (uint8_t i = 0; i < dest.len; i++) {
+        src_req.name[i] = dest.buf[i];
+    }
+
+    // Write file
+    syscall(SYSCALL_WRITE, (uint32_t) &src_req, (uint32_t) &retcode, 0);
+
+    // Return error if file already exists
+    if (retcode == 1) {
+        struct SyscallPutsArgs file_exists = {
+            .buf = "cp error: File with the same name already exists in current directory!",
+            .count = strlen(file_exists.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &file_exists, 0, 0);
+        return;
+    }
+
+    // Update current directory table
+    syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+
+    // Print success message
+    struct SyscallPutsArgs success = {
+        .buf = "cp: File successfully copied to ",
+        .count = strlen(success.buf),
+        .fg_color = BIOS_LIGHT_GREEN,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &success, 0, 0);
+
+    struct SyscallPutsArgs dest_name = {
+        .buf = dest.buf,
+        .count = dest.len,
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &dest_name, 0, 0);
+
+    struct SyscallPutsArgs success2 = {
+        .buf = "!",
+        .count = strlen(success2.buf),
+        .fg_color = BIOS_LIGHT_GREEN,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &success2, 0, 0);
 }
 
 // Find
