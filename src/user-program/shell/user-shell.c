@@ -510,8 +510,18 @@ void cd(struct StringN folder) {
             //     break;
             // }
             if (strcmp(entry.name, folder.buf) == true && strcmp(entry.ext, "\0\0\0") == true) {
-                // uint32_t cluster = (entry.cluster_high << 16) | entry.cluster_low;
-                
+                // If entry is a file, return
+                if (entry.attribute != ATTR_SUBDIRECTORY) {
+                    struct SyscallPutsArgs args = {
+                        .buf = "cd error: Not a directory!",
+                        .count = strlen(args.buf),
+                        .fg_color = BIOS_LIGHT_RED,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                    return;
+                }
+
                 // Construct FAT32DriverRequest
                 struct FAT32DriverRequest request = {
                     .buf = &currentDir,
@@ -529,19 +539,45 @@ void cd(struct StringN folder) {
                 // Read new directory to currentDir
                 uint32_t retcode;
                 syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) &retcode, 0);
+
                 retcode++;
 
                 // Set new current cluster
                 set_current_cluster();
                 create_path();
+
+                // Print finishing prompt
+                struct SyscallPutsArgs args = {
+                    .buf = "Current directory successfully changed to ",
+                    .count = strlen(args.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+                struct SyscallPutsArgs args2 = {
+                    .buf = request.buf,
+                    .count = strlen(args2.buf),
+                    .fg_color = BIOS_YELLOW,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+                struct SyscallPutsArgs args3 = {
+                    .buf = "!",
+                    .count = strlen(args3.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
                 return;
             }
         }
 
         struct SyscallPutsArgs args = {
-            .buf = "Directory not found!",
+            .buf = "cd error: Directory not found!",
             .count = strlen(args.buf),
-            .fg_color = 0xC,
+            .fg_color = BIOS_LIGHT_RED,
             .bg_color = 0x0
         };
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
