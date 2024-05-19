@@ -495,15 +495,45 @@ int main(void) {
 
 // Shell command implementation
 // cd
-void cd(struct StringN folder) {
-    if (strcmp(folder.buf, "..") == true) {
-        struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
-        uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
+void cd(struct StringN folder) {        
+    bool isCwd = strcmp(folder.buf, ".");
+    bool isRoot = strcmp(folder.buf, "..");
+    if (isCwd || isRoot) {
+        if (isRoot) {
+            struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
+            uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
 
-        syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, parent_cluster, 0);
-        set_current_cluster();
+            syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, parent_cluster, 0);
+            set_current_cluster();
 
-        create_path();
+            create_path();
+        }
+
+        // Print finishing prompt
+        struct SyscallPutsArgs args = {
+            .buf = "Current directory successfully changed to ",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_GREEN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+        struct SyscallPutsArgs args2 = {
+            .buf = currentDir.table[0].name,
+            .count = strlen(args2.buf),
+            .fg_color = BIOS_YELLOW,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+        struct SyscallPutsArgs args3 = {
+            .buf = "!",
+            .count = strlen(args3.buf),
+            .fg_color = BIOS_LIGHT_GREEN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
+        return;
     } else {
         struct FAT32DirectoryTable table = currentDir;
         for (int i = 2; i < 64; i++) {
@@ -615,6 +645,24 @@ void ls(){
         .bg_color = 0x0
     };
     syscall(SYSCALL_PUTS, (uint32_t) &file, 0, 0);
+
+    // Print current directory
+    struct SyscallPutsArgs cwd = {
+        .buf = ". ",
+        .count = strlen(cwd.buf),
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &cwd, 0, 0);
+
+    // Print parent directory
+    struct SyscallPutsArgs pd = {
+        .buf = ".. ",
+        .count = strlen(pd.buf),
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &pd, 0, 0);
 
     // Print file as blue
     for (int i = 2; i < 64; i++) {
