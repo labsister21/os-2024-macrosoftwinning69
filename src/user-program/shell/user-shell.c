@@ -239,7 +239,7 @@ void shell_input_handler(struct StringN input) {
     stringn_create(&arg1);
 
     uint32_t j;
-    for (j = 1; (j < input.len && input.buf[i + j] != ' '); j++) {
+    for (j = 1; ((i + j) < input.len && input.buf[i + j] != ' '); j++) {
         stringn_appendchar(&arg1, input.buf[i + j]);
     }
     
@@ -664,7 +664,7 @@ void mkdir(struct StringN folder_Name){
         .bg_color = 0x0
     };
     if(folder_Name.len > 8){
-        args.buf = "Directory name is too long! (Maximum 8 Characters)";
+        args.buf = "Directory name is too long! Maximum name length is 8 characters.";
         args.count = strlen(args.buf);
         args.fg_color = 0xC;
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -722,11 +722,11 @@ void mkdir(struct StringN folder_Name){
             break;
         default:
             break;
+        }
     }
-}
 
-    // memcpy(request.name, f, sizeof(request.name));
-    // request.name[sizeof(request.name)-1] = '';
+    // Update current directory table
+    syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
 }
 
 // rm
@@ -743,7 +743,7 @@ void rm(struct StringN folder){
         .bg_color = 0x0
     };
     if(folder.len > 8){
-        args.buf = "rm: cannot remove : name is too long! (Maximum 8 Characters)";
+        args.buf = "rm: cannot remove: name is too long! Maximum name length is 8 characters.";
         args.count = strlen(args.buf);
         args.fg_color = 0xC;
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
