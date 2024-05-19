@@ -613,14 +613,7 @@ void cd(struct StringN folder) {
         struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
         uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
 
-        struct FAT32DriverRequest request = {
-            .buf = &currentDir,
-            .name = "root",
-            .ext = "\0\0\0",
-            .parent_cluster_number = parent_cluster,
-            .buffer_size = sizeof(struct FAT32DirectoryTable)
-        };
-        syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
+        syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, parent_cluster, 0);
         set_current_cluster();
 
         create_path();
