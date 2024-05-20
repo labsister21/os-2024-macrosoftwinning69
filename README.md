@@ -7,6 +7,12 @@
 
 > Milestone 3: Pembuatan Sistem Operasi x86 Process, Scheduler, Multitasking
 
+<div align="center">
+<img src="OS.gif" width="500" alt="Operating System Anjay">
+
+<p>Operating System Ahanjay</p>
+<div>
+
 ## Anggota Kelompok
 <table>
     <tr>
