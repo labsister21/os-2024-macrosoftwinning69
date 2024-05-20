@@ -583,12 +583,10 @@ void syscall(struct InterruptFrame frame) {
             write_clusters((struct ClusterBuffer*) frame.cpu.general.ebx, frame.cpu.general.ecx, 1);
             break;
 
-        // SYSCALL 30
-        case SYSCALL_FIND_FILE:
+        // SYSCALL 27
+        case SYSCALL_KILL_PROCESS:
         ;
-            *((int8_t*) frame.cpu.general.ecx) = find_start(
-                *(struct FAT32DriverRequest*) frame.cpu.general.ebx
-            );
+            process_destroy(frame.cpu.general.ebx);
             break;
     }
 }

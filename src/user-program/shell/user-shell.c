@@ -45,6 +45,7 @@ uint32_t currentDirCluster;
 // Shell (process) commands
 #define SHELL_EXEC "exec"
 #define SHELL_PS "ps"
+#define SHELL_KILL "kill"
 
 // Variable for storing cp destination cluster
 uint32_t cp_dest_cluster;
@@ -66,6 +67,7 @@ void find(struct StringN filename);
 // Shell process commands definitions
 void exec(struct StringN filename);
 void ps();
+void kill(struct StringN pid);
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -299,6 +301,8 @@ void shell_input_handler(struct StringN input) {
         ps();
     } else if (strcmp(command, SHELL_EXEC)) {
         exec(arg1);
+    } else if (strcmp(command, SHELL_KILL)) {
+        kill(arg1);
     } else {
         struct SyscallPutsArgs args = {
             .buf = "Unknown command! Please enter another command.",
@@ -1553,7 +1557,7 @@ void ps() {
 
     // Print header
     struct SyscallPutsArgs header = {
-        .buf = "PID        Name        State        Frame Count",
+        .buf = "PID      Name        State        Frame Count",
         .count = strlen(header.buf),
         .fg_color = BIOS_YELLOW,
         .bg_color = 0x0
@@ -1628,4 +1632,17 @@ void ps() {
             syscall(SYSCALL_PUTS, (uint32_t) &frame_count, 0, 0);
         }
     }
+}
+
+void kill(struct StringN pid_string) {
+    if (strcmp(pid_string.buf, "0")) syscall(SYSCALL_KILL_PROCESS, 0, 0, 0);
+    if (strcmp(pid_string.buf, "1")) syscall(SYSCALL_KILL_PROCESS, 1, 0, 0);
+    if (strcmp(pid_string.buf, "2")) syscall(SYSCALL_KILL_PROCESS, 2, 0, 0);
+    if (strcmp(pid_string.buf, "3")) syscall(SYSCALL_KILL_PROCESS, 3, 0, 0);
+    if (strcmp(pid_string.buf, "4")) syscall(SYSCALL_KILL_PROCESS, 4, 0, 0);
+    if (strcmp(pid_string.buf, "5")) syscall(SYSCALL_KILL_PROCESS, 5, 0, 0);
+    if (strcmp(pid_string.buf, "6")) syscall(SYSCALL_KILL_PROCESS, 6, 0, 0);
+    if (strcmp(pid_string.buf, "7")) syscall(SYSCALL_KILL_PROCESS, 7, 0, 0);
+    if (strcmp(pid_string.buf, "8")) syscall(SYSCALL_KILL_PROCESS, 8, 0, 0);
+    if (strcmp(pid_string.buf, "9")) syscall(SYSCALL_KILL_PROCESS, 9, 0, 0);
 }

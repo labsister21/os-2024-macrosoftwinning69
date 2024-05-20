@@ -29,7 +29,7 @@
 #define SYSCALL_GET_IS_SHELL_OPEN       24
 #define SYSCALL_SET_IS_SHELL_OPEN       25
 #define SYSCALL_WRITE_CLUSTER           26
-#define SYSCALL_FIND_FILE               30
+#define SYSCALL_KILL_PROCESS            27
 
 // BIOS colors
 #define BIOS_BLACK                     0x0
