@@ -43,8 +43,7 @@ void create_bg() {
 void kernel_setup(void) {
     // Test paging
     // paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x600000);
-    // paging_free_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0x700000);
-    // *((uint8_t*) 0x500000) = 1;
+    // *((uint8_t*) 0x900000) = 1;
 
     // Load GDT
     load_gdt(&_gdt_gdtr);
@@ -64,7 +63,7 @@ void kernel_setup(void) {
     // Allocate first 4 MiB virtual memory
     paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0);
 
-    // // Write bin folder
+    // Write bin folder
     // struct FAT32DriverRequest bin = {
     //     .name = "bin",
     //     .ext = "\0\0\0",
@@ -92,82 +91,4 @@ void kernel_setup(void) {
     // Start scheduler
     scheduler_init();
     scheduler_switch_to_next_process();
-    
-    // struct Context ctx = {
-    //     .cpu = {
-    //         .index = {
-    //             .edi = 0x50,
-    //             .esi = 0x51,
-    //         },
-    //         .stack = {
-    //             .ebp = _process_list[0].context.cpu.stack.ebp,
-    //             .esp = _process_list[0].context.cpu.stack.esp,
-    //         },
-    //         .general = {
-    //             .ebx = 0x54,
-    //             .edx = 0x55,
-    //             .ecx = 0x56,
-    //             .eax = 0x57,
-    //         },
-    //         .segment = {
-    //             .gs = _process_list[0].context.cpu.segment.gs,
-    //             .fs = _process_list[0].context.cpu.segment.fs,
-    //             .es = _process_list[0].context.cpu.segment.es,
-    //             .ds = _process_list[0].context.cpu.segment.ds,
-    //         },
-        
-    //     },
-    //     .eip = _process_list[0].context.eip,
-    //     .eflags = 0x69,
-    //     .page_directory_virtual_addr = _process_list[0].context.page_directory_virtual_addr,
-    // };
-    // process_context_switch(ctx);
-
-    // uint8_t hi = 0;
-    // hi++;
-    // kernel_execute_user_program((void*) 0x0);
-
-    // while (true);
-
-    // int col = 0;
-    // keyboard_state_activate();
-    // while (true){
-    //     char c;
-    //     get_keyboard_buffer(&c);
-    //     if (c) framebuffer_write(0, col++, c, 0xF, 0);
-    // }
-
-    // Read directory
-    // struct FAT32DirectoryTable buf;
-    // memset(&buf, 0, CLUSTER_SIZE);
-
-    // struct FAT32DriverRequest req = {
-    //     .buf = &buf,
-    //     .name = "nestedf1",
-    //     .parent_cluster_number = 4,
-    //     .buffer_size = CLUSTER_SIZE
-    // };
-    // int8_t read_dir = read_directory(req);
-    // read_dir++;
-
-    // Read file
-    // uint8_t buf[CLUSTER_SIZE * 3];
-    // memset(&buf, 0, CLUSTER_SIZE * 3);
-
-    // struct FAT32DriverRequest req2 = {
-    //     .buf = &buf,
-    //     .name = "daijoubu",
-    //     .parent_cluster_number = 4,
-    //     .buffer_size = CLUSTER_SIZE * 3
-    // };
-    // int8_t read_file = read(req2);
-    // read_file++;
-
-    // Delete file
-    // struct FAT32DriverRequest req6 = {
-    //     .name = "lol",
-    //     .parent_cluster_number = ROOT_CLUSTER_NUMBER
-    // };
-    // int8_t delete6 = delete(req6);
-    // delete6++;
 }

@@ -4,13 +4,6 @@
 #include "../utils.h"
 #include "shell-background.h"
 
-// #define BLOCK_COUNT 16
-
-// static uint32_t currenDir = ROOT_CLUSTER_NUMBER;
-// static struct FAT32DirectoryTable curTable;
-// static char curDirName[300] = "/\0";
-// static struct FAT32DirectoryTable rootTable;
-
 // Itoa table
 char* itoa[] = {
     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
@@ -21,17 +14,21 @@ char* itoa[] = {
 };
 
 // Filesystem variables
+struct FAT32DirectoryTable rootDir;
+struct StringN rootDirPath;
+uint32_t rootDirCluster;
+
 struct FAT32DirectoryTable currentDir;
 struct StringN currentDirPath;
 uint32_t currentDirCluster;
 
 // Shell properties
-#define SHELL_WINDOW_UPPER_HEIGHT 0
-#define SHELL_WINDOW_LOWER_HEIGHT 24
-#define SHELL_WINDOW_LEFT_WIDTH 0
-#define SHELL_WINDOW_RIGHT_WIDTH 79
+#define SHELL_WINDOW_UPPER_HEIGHT 2
+#define SHELL_WINDOW_LOWER_HEIGHT 21
+#define SHELL_WINDOW_LEFT_WIDTH 2
+#define SHELL_WINDOW_RIGHT_WIDTH 77
 
-// Shell commands
+// Shell (specification) commands
 #define SHELL_CD "cd"
 #define SHELL_LS "ls"
 #define SHELL_MKDIR "mkdir"
@@ -41,25 +38,36 @@ uint32_t currentDirCluster;
 #define SHELL_MV "mv"
 #define SHELL_FIND "find"
 
+// Shell (additional commands)
 #define SHELL_CLEAR "clear"
-
 #define SHELL_OKEGAS "okegas"
 
-// Shell process commands
+// Shell (process) commands
+#define SHELL_EXEC "exec"
 #define SHELL_PS "ps"
+#define SHELL_KILL "kill"
 
-// Definisi shell commands
-// Definisi command mkdir (Make Directory)
+// Variable for storing cp destination cluster
+uint32_t cp_dest_cluster;
+
+// Noprint for cd
+#define CD_NO_PRINT 0
+#define CD_PRINT    1
+
+// Shell commands definitions
+void cd(struct StringN folder, uint8_t print);
+void ls();
 void mkdir(struct StringN folder_Name);
-// Definisi command cd (Change Directory)
-void cd(struct StringN folder);
-// Definisi command rm (remove)
 void rm(struct StringN folder);
-// Definisi command cat
 void cat(struct StringN filename);
+void cp(struct StringN src, struct StringN dest);
+void mv(struct StringN src, struct StringN dest);
+void find(struct StringN filename);
 
-// Definisi process commands
+// Shell process commands definitions
+void exec(struct StringN filename);
 void ps();
+void kill(struct StringN pid);
 
 // System call function
 void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
@@ -72,23 +80,19 @@ void syscall(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) {
     __asm__ volatile("int $0x30");
 }
 
-// void sys_mkdir(const char* path) {
-//     syscall(9, (uint32_t) path, strlen(path), 0);
-// }
-
 // Shell status
 struct ShellStatus {
     bool is_open;
     uint8_t del_limit;          // Limit for backspace
     uint8_t shell_row;
 };
-
 struct ShellStatus shell_status = {
     .is_open = false,
     .shell_row = 0
 };
 
 // Procedures
+// Recursively create current directory path
 struct StringN create_path_recursive(uint32_t cluster) {
     if (cluster == ROOT_CLUSTER_NUMBER) {
         struct StringN path;
@@ -121,6 +125,7 @@ struct StringN create_path_recursive(uint32_t cluster) {
     return parent_path;
 }
 
+// Create current directory path
 void create_path() {
     struct FAT32DirectoryEntry curr_entry = currentDir.table[0];
     uint32_t cluster = (curr_entry.cluster_high << 16) | curr_entry.cluster_low;
@@ -128,11 +133,14 @@ void create_path() {
     currentDirPath = create_path_recursive(cluster);
 }
 
-void set_current_cluster() {
+// Set current directory cluster
+void set_current_cluster() {    
+    // Set currentDirCluster
     struct FAT32DirectoryEntry curr_entry = currentDir.table[0];
     currentDirCluster = (curr_entry.cluster_high << 16) | curr_entry.cluster_low;
 }
 
+// Create shell background
 void shell_create_bg() {
     // Set cursor   
     syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
@@ -185,9 +193,10 @@ void shell_create_bg() {
     syscall(SYSCALL_PUTS_AT, (uint32_t) &welcome3, 0, 0);
 
     // Set cursor   
-    syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+    syscall(SYSCALL_SET_CURSOR, 10, 8, 0);
 }
 
+// Print shell prompt
 void shell_print_prompt() {
     // Get path and save to currentDirPath
     create_path();
@@ -228,37 +237,7 @@ void shell_print_prompt() {
     syscall(SYSCALL_GET_CURSOR_COL, (uint32_t) &shell_status.del_limit, 0, 0);
 }
 
-// ls command
-void ls(){
-    struct FAT32DirectoryTable table = currentDir;
-    for (int i = 2; i < 64; i++) {
-        // Check if entry is empty
-        struct FAT32DirectoryEntry entry = table.table[i];
-        if (entry.name[0] == '\0') {
-            break;
-        }
-
-        // Print entry name
-        struct SyscallPutsArgs args = {
-            .buf = entry.name,
-            .count = strlen(args.buf),
-            .fg_color = 0x7,
-            .bg_color = 0x0
-        };
-
-        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-
-        // Print space between entries
-        struct SyscallPutsArgs args2 = {
-            .buf = " ",
-            .count = strlen(args2.buf),
-            .fg_color = 0x7,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
-    }
-}
-
+// Handle shell command input
 void shell_input_handler(struct StringN input) {
     // Get 0th argument
     struct StringN arg0;
@@ -274,14 +253,23 @@ void shell_input_handler(struct StringN input) {
     stringn_create(&arg1);
 
     uint32_t j;
-    for (j = 1; (j < input.len && input.buf[i + j] != ' '); j++) {
+    for (j = 1; ((i + j) < input.len && input.buf[i + j] != ' '); j++) {
         stringn_appendchar(&arg1, input.buf[i + j]);
+    }
+
+    // Get 2nd argument
+    struct StringN arg2;
+    stringn_create(&arg2);
+
+    uint32_t k;
+    for (k = 1; ((i + j + k) < input.len && input.buf[i + j + k] != ' '); k++) {
+        stringn_appendchar(&arg2, input.buf[i + j + k]);
     }
     
     char* command = arg0.buf;
 
     if (strcmp(command, SHELL_CD)) {
-        cd(arg1);
+        cd(arg1, CD_PRINT);
     } else if (strcmp(command, SHELL_LS)) {
         ls();
     } else if (strcmp(command, SHELL_MKDIR)) {
@@ -289,16 +277,17 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_CAT)) {
         cat(arg1);
     } else if (strcmp(command, SHELL_CP)) {
-
+        cp_dest_cluster = currentDirCluster;
+        cp(arg1, arg2);
     } else if (strcmp(command, SHELL_RM)) {
         rm(arg1);
     } else if (strcmp(command, SHELL_MV)) {
-
+        mv(arg1, arg2);
     } else if (strcmp(command, SHELL_FIND)) {
-
+        find(arg1);
     } else if (strcmp(command, SHELL_CLEAR)) {
         syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
-        syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+        syscall(SYSCALL_SET_CURSOR, SHELL_WINDOW_UPPER_HEIGHT, SHELL_WINDOW_LEFT_WIDTH, 0);
         shell_print_prompt();
     } else if (strcmp(command, SHELL_OKEGAS)) {
         struct SyscallPutsArgs args = {
@@ -310,6 +299,10 @@ void shell_input_handler(struct StringN input) {
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
     } else if (strcmp(command, SHELL_PS)) {
         ps();
+    } else if (strcmp(command, SHELL_EXEC)) {
+        exec(arg1);
+    } else if (strcmp(command, SHELL_KILL)) {
+        kill(arg1);
     } else {
         struct SyscallPutsArgs args = {
             .buf = "Unknown command! Please enter another command.",
@@ -329,6 +322,15 @@ int main(void) {
     // Create shell background
     shell_create_bg();
 
+    // Set shell border limits
+    struct SyscallKeyboardBordersArgs borders = {
+        .up = SHELL_WINDOW_UPPER_HEIGHT,
+        .down = SHELL_WINDOW_LOWER_HEIGHT,
+        .left = SHELL_WINDOW_LEFT_WIDTH,
+        .right = SHELL_WINDOW_RIGHT_WIDTH
+    };
+    syscall(SYSCALL_SET_KEYBOARD_BORDERS, (uint32_t) &borders, 0, 0);
+
     // Load root directory
     struct FAT32DriverRequest request = {
         .buf = &currentDir,
@@ -339,6 +341,11 @@ int main(void) {
     };
     syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
     set_current_cluster();
+    create_path();
+
+    rootDir = currentDir;
+    rootDirPath = currentDirPath;
+    rootDirCluster = currentDirCluster;
 
     // Behavior variables
     char buf;
@@ -355,6 +362,8 @@ int main(void) {
     struct StringN shell_input;
     stringn_create(&shell_input);
 
+    shell_status.shell_row = SHELL_WINDOW_UPPER_HEIGHT;
+
     // Main program loop
     while (true) {
         // Get if user is pressing ctrl
@@ -370,9 +379,74 @@ int main(void) {
                 // Set shell to open
                 shell_status.is_open = true;
 
+                // Set kernel shell open variable
+                syscall(SYSCALL_SET_IS_SHELL_OPEN, (uint32_t) shell_status.is_open, 0, 0);
+
+                // Get border limits
+                uint8_t up = SHELL_WINDOW_UPPER_HEIGHT;
+                // uint8_t down = SHELL_WINDOW_LOWER_HEIGHT;
+                uint8_t left = SHELL_WINDOW_LEFT_WIDTH;
+                uint8_t right = SHELL_WINDOW_RIGHT_WIDTH;
+
                 // Clear screen and print prompt
                 syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
-                syscall(SYSCALL_SET_CURSOR, 0, 0, 0);
+                syscall(SYSCALL_SET_CURSOR, up - 1, left, 0);
+
+                // Print window header
+                for (int j = left; j < right + 1; j++) {
+                    struct SyscallPutsArgs args = {
+                        .buf = " ",
+                        .count = 1,
+                        .fg_color = 0x0,
+                        .bg_color = BIOS_DARK_GRAY
+                    };
+
+                    syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                }
+
+                // Print window title
+                struct SyscallPutsAtArgs title = {
+                    .buf = "Shell",
+                    .count = strlen(title.buf),
+                    .fg_color = BIOS_WHITE,
+                    .bg_color = BIOS_DARK_GRAY,
+                    .row = up - 1,
+                    .col = left + 3
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &title, 0, 0);
+
+                // Print window buttons
+                struct SyscallPutsAtArgs x = {
+                    .buf = " X ",
+                    .count = 3,
+                    .fg_color = BIOS_BLACK,
+                    .bg_color = BIOS_RED,
+                    .row = up - 1,
+                    .col = right - 2
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &x, 0, 0);
+
+                struct SyscallPutsAtArgs O = {
+                    .buf = " O ",
+                    .count = 3,
+                    .fg_color = BIOS_BLACK,
+                    .bg_color = BIOS_YELLOW,
+                    .row = up - 1,
+                    .col = right - 5
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &O, 0, 0);
+
+                struct SyscallPutsAtArgs m = {
+                    .buf = " _ ",
+                    .count = 3,
+                    .fg_color = BIOS_BLACK,
+                    .bg_color = BIOS_LIGHT_GREEN,
+                    .row = up - 1,
+                    .col = right - 8
+                };
+                syscall(SYSCALL_PUTS_AT, (uint32_t) &m, 0, 0);
+
+                // Print shell prompt
                 shell_print_prompt();
             }
         } else {
@@ -380,6 +454,9 @@ int main(void) {
             if (press_ctrl && buf == 's') {
                 // Set shell to open
                 shell_status.is_open = false;
+
+                // Set kernel shell open variable
+                syscall(SYSCALL_SET_IS_SHELL_OPEN, (uint32_t) shell_status.is_open, 0, 0);
 
                 // Create background
                 shell_create_bg();
@@ -446,6 +523,218 @@ int main(void) {
     return 0;
 }
 
+// Shell command implementation
+// cd
+void cd(struct StringN folder, uint8_t print) {        
+    bool isCwd = strcmp(folder.buf, ".");
+    bool isRoot = strcmp(folder.buf, "..");
+    if (isCwd || isRoot) {
+        if (isRoot) {
+            struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
+            uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
+
+            syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, parent_cluster, 0);
+            set_current_cluster();
+
+            create_path();
+        }
+
+        if (print == CD_PRINT) {
+            // Print finishing prompt
+            struct SyscallPutsArgs args = {
+                .buf = "Current directory successfully changed to ",
+                .count = strlen(args.buf),
+                .fg_color = BIOS_LIGHT_GREEN,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+            struct SyscallPutsArgs args2 = {
+                .buf = currentDir.table[0].name,
+                .count = strlen(args2.buf),
+                .fg_color = BIOS_YELLOW,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+            struct SyscallPutsArgs args3 = {
+                .buf = "!",
+                .count = strlen(args3.buf),
+                .fg_color = BIOS_LIGHT_GREEN,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
+        }
+        return;
+    } else {
+        struct FAT32DirectoryTable table = currentDir;
+        for (int i = 2; i < 64; i++) {
+            struct FAT32DirectoryEntry entry = table.table[i];
+            // if (entry.name[0] == '\0') {
+            //     break;
+            // }
+            if (strcmp(entry.name, folder.buf) == true && strcmp(entry.ext, "\0\0\0") == true) {
+                // If entry is a file, return
+                if (entry.attribute != ATTR_SUBDIRECTORY) {
+                    struct SyscallPutsArgs args = {
+                        .buf = "cd error: Not a directory!",
+                        .count = strlen(args.buf),
+                        .fg_color = BIOS_LIGHT_RED,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                    return;
+                }
+
+                // Construct FAT32DriverRequest
+                struct FAT32DriverRequest request = {
+                    .buf = &currentDir,
+                    .ext = "\0\0\0",
+                    .parent_cluster_number = currentDirCluster,
+                    .buffer_size = sizeof(struct FAT32DirectoryTable)
+                    {}
+                };
+
+                // Set request name
+                for (uint8_t i = 0; i < folder.len; i++) {
+                    request.name[i] = folder.buf[i];
+                }
+
+                // Read new directory to currentDir
+                uint32_t retcode;
+                syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) &retcode, 0);
+
+                retcode++;
+
+                // Set new current cluster
+                set_current_cluster();
+                create_path();
+
+                if (print == CD_PRINT) {                    
+                    // Print finishing prompt
+                    struct SyscallPutsArgs args = {
+                        .buf = "Current directory successfully changed to ",
+                        .count = strlen(args.buf),
+                        .fg_color = BIOS_LIGHT_GREEN,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+                    struct SyscallPutsArgs args2 = {
+                        .buf = request.buf,
+                        .count = strlen(args2.buf),
+                        .fg_color = BIOS_YELLOW,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+
+                    struct SyscallPutsArgs args3 = {
+                        .buf = "!",
+                        .count = strlen(args3.buf),
+                        .fg_color = BIOS_LIGHT_GREEN,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
+                }
+                return;
+            }
+        }
+
+        if (print == CD_PRINT) {
+            struct SyscallPutsArgs args = {
+                .buf = "cd error: Directory not found!",
+                .count = strlen(args.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        }
+    }
+}
+
+// ls
+void ls(){
+    struct FAT32DirectoryTable table = currentDir;
+    // Print folder as yellow
+    struct SyscallPutsArgs fold = {
+        .buf = "[folder]",
+        .count = strlen(fold.buf),
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &fold, 0, 0);
+
+    // Print space between folder and file
+    struct SyscallPutsArgs space = {
+        .buf = " ",
+        .count = strlen(space.buf),
+        .fg_color = 0x7,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &space, 0, 0);
+
+    // Print file as light cyan
+    struct SyscallPutsArgs file = {
+        .buf = "[file]\n",
+        .count = strlen(file.buf),
+        .fg_color = BIOS_LIGHT_CYAN,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &file, 0, 0);
+
+    // Print current directory
+    struct SyscallPutsArgs cwd = {
+        .buf = ". ",
+        .count = strlen(cwd.buf),
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &cwd, 0, 0);
+
+    // Print parent directory
+    struct SyscallPutsArgs pd = {
+        .buf = ".. ",
+        .count = strlen(pd.buf),
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &pd, 0, 0);
+
+    // Print file as blue
+    for (int i = 2; i < 64; i++) {
+        // Check if entry is empty
+        struct FAT32DirectoryEntry entry = table.table[i];
+        if (entry.user_attribute != UATTR_NOT_EMPTY) continue;
+
+        // Print entry name
+        struct SyscallPutsArgs args = {
+            .buf = entry.name,
+            .count = strlen(args.buf),
+            .fg_color = entry.attribute == ATTR_SUBDIRECTORY ? BIOS_YELLOW : BIOS_LIGHT_CYAN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+        // Print space between entries
+        struct SyscallPutsArgs args2 = {
+            .buf = " ",
+            .count = strlen(args2.buf),
+            .fg_color = 0x7,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+    }
+
+    // Print newline
+    struct SyscallPutsArgs newline = {
+        .buf = "\n",
+        .count = strlen(newline.buf),
+        .fg_color = 0x7,
+        .bg_color = 0x0
+    };
+}
+
+// mkdir
 void mkdir(struct StringN folder_Name){
     struct FAT32DriverRequest request = {
         .name = "\0\0\0\0\0\0\0\0",
@@ -459,7 +748,7 @@ void mkdir(struct StringN folder_Name){
         .bg_color = 0x0
     };
     if(folder_Name.len > 8){
-        args.buf = "Directory name is too long! (Maximum 8 Characters)";
+        args.buf = "Directory name is too long! Maximum name length is 8 characters.";
         args.count = strlen(args.buf);
         args.fg_color = 0xC;
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -488,7 +777,7 @@ void mkdir(struct StringN folder_Name){
             args.count = strlen(args.buf);
             args.fg_color = 0xE;
             syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-            args.buf = "has been created..";
+            args.buf = " has been created.";
             args.count = strlen(args.buf);
             args.fg_color = 0xE;
             syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -517,63 +806,14 @@ void mkdir(struct StringN folder_Name){
             break;
         default:
             break;
-    }
-}
-
-    // memcpy(request.name, f, sizeof(request.name));
-    // request.name[sizeof(request.name)-1] = '';
-}
-void cd(struct StringN folder) {
-    if (strcmp(folder.buf, "..") == 0) {
-        struct FAT32DirectoryEntry parent_entry = currentDir.table[1];
-        uint32_t parent_cluster = (parent_entry.cluster_high << 16) | parent_entry.cluster_low;
-
-        struct FAT32DriverRequest request = {
-            .buf = &currentDir,
-            .name = "root",
-            .ext = "\0\0\0",
-            .parent_cluster_number = parent_cluster,
-            .buffer_size = sizeof(struct FAT32DirectoryTable)
-        };
-        syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
-        set_current_cluster();
-
-        create_path();
-    } else {
-        struct FAT32DirectoryTable table = currentDir;
-        for (int i = 2; i < 64; i++) {
-            struct FAT32DirectoryEntry entry = table.table[i];
-            if (entry.name[0] == '\0') {
-                break;
-            }
-            if (strcmp(entry.name, folder.buf) == 0) {
-                uint32_t cluster = (entry.cluster_high << 16) | entry.cluster_low;
-                struct FAT32DriverRequest request = {
-                    .buf = &currentDir,
-                    .name = *entry.name,
-                    .ext = *entry.ext,
-                    .parent_cluster_number = cluster,
-                    .buffer_size = sizeof(struct FAT32DirectoryTable)
-                    {}
-                };
-                syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
-                set_current_cluster();
-
-                create_path();
-                return;
-            }
         }
-
-        struct SyscallPutsArgs args = {
-            .buf = "Directory not found!",
-            .count = strlen(args.buf),
-            .fg_color = 0xC,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
     }
+
+    // Update current directory table
+    syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
 }
 
+// rm
 void rm(struct StringN folder){
     struct FAT32DriverRequest request = {
         .name = "\0\0\0\0\0\0\0\0",
@@ -587,7 +827,7 @@ void rm(struct StringN folder){
         .bg_color = 0x0
     };
     if(folder.len > 8){
-        args.buf = "rm: cannot remove : name is too long! (Maximum 8 Characters)";
+        args.buf = "rm: cannot remove: Name is too long! Maximum name length is 8 characters.";
         args.count = strlen(args.buf);
         args.fg_color = 0xC;
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -616,7 +856,7 @@ void rm(struct StringN folder){
                 args.count = strlen(args.buf);
                 args.fg_color = 0xE;
                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-                args.buf = "has been removed..";
+                args.buf = " has been removed.";
                 args.count = strlen(args.buf);
                 args.fg_color = 0xE;
                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -635,8 +875,26 @@ void rm(struct StringN folder){
                 args.fg_color = 0xC;
                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
                 break;
+
+            case 2:
+                args.buf = "rm: cannot remove '";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = folder.buf;
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                args.buf = "': Directory is not empty";
+                args.count = strlen(args.buf);
+                args.fg_color = 0xC;
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                break;
         }
     }
+
+    // Update current directory table
+    syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
 }
 
 // meong
@@ -723,6 +981,555 @@ void cat(struct StringN filename) {
     }
 }
 
+// cp
+void cp(struct StringN src, struct StringN dest) {
+    // If source or destination name is too long, return error
+    if (src.len > 8 || dest.len > 8) {
+        struct SyscallPutsArgs args = {
+            .buf = "cp: cannot copy: Name is too long! Maximum name length is 8 characters.",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Return error if not enough arguments
+    if (src.len == 0 || dest.len == 0) {
+        struct SyscallPutsArgs args = {
+            .buf = "cp error: Not enough arguments! Usage: cp <source> <destination>",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Source request
+    uint8_t src_buf[15 * CLUSTER_SIZE];
+    struct FAT32DriverRequest src_req = {
+        .buf = &src_buf,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = 15 * CLUSTER_SIZE
+    };
+
+    for (uint8_t i = 0; i < src.len; i++) {
+        src_req.name[i] = src.buf[i];
+    }
+
+    // Read source
+    int8_t retcode;
+    syscall(SYSCALL_READ, (uint32_t) &src_req, (uint32_t) &retcode, 0);
+
+    // If source file not found, return error
+    switch (retcode) {
+        case 1:
+            struct SyscallPutsArgs not_file = {
+                .buf = "cp error: Source is not a file!",
+                .count = strlen(not_file.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_file, 0, 0);
+            return;
+        case 2:
+            struct SyscallPutsArgs not_found = {
+                .buf = "cp error: Source file is not a found in current directory!",
+                .count = strlen(not_found.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_found, 0, 0);
+            return;
+        case -1:
+            struct SyscallPutsArgs not_enough_size = {
+                .buf = "cp error: Source file is too large!",
+                .count = strlen(not_found.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_enough_size, 0, 0);
+            return;
+        default:
+            break;
+    }
+
+    // Count filesize
+    uint32_t filesize = 0;
+    uint8_t* src_buf_ptr = (uint8_t*) src_req.buf;
+    uint32_t i = 0;
+
+    uint32_t blank_count = 0;
+    while (true) {
+
+        if (src_buf_ptr[i] != '\0') {
+            filesize++;
+            i = filesize * CLUSTER_SIZE;
+            i++;
+        } else if (blank_count == 10) {
+            break;
+        } else {
+            blank_count++;
+        }
+    }
+
+    // Modify src_req for writing
+    src_req.buffer_size = filesize * CLUSTER_SIZE;
+
+    for (uint8_t i = 0; i < dest.len; i++) {
+        src_req.name[i] = dest.buf[i];
+    }
+
+    // Write file
+    src_req.parent_cluster_number = cp_dest_cluster;
+    syscall(SYSCALL_WRITE, (uint32_t) &src_req, (uint32_t) &retcode, 0);
+
+    // Return error if file already exists
+    if (retcode == 1) {
+        struct SyscallPutsArgs file_exists = {
+            .buf = "cp error: File with the same name already exists in current directory!",
+            .count = strlen(file_exists.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &file_exists, 0, 0);
+        return;
+    }
+
+    // Update current directory table
+    syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+
+    // Print success message
+    if (cp_dest_cluster != currentDirCluster) return;
+    struct SyscallPutsArgs success = {
+        .buf = "cp: File successfully copied to ",
+        .count = strlen(success.buf),
+        .fg_color = BIOS_LIGHT_GREEN,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &success, 0, 0);
+
+    struct SyscallPutsArgs dest_name = {
+        .buf = dest.buf,
+        .count = dest.len,
+        .fg_color = BIOS_YELLOW,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &dest_name, 0, 0);
+
+    struct SyscallPutsArgs success2 = {
+        .buf = "!",
+        .count = strlen(success2.buf),
+        .fg_color = BIOS_LIGHT_GREEN,
+        .bg_color = 0x0
+    };
+    syscall(SYSCALL_PUTS, (uint32_t) &success2, 0, 0);
+}
+
+// to not found --> rename
+// to folder --> move
+// to file --> error
+
+// mv
+void mv(struct StringN src, struct StringN dest) {
+    // If source or destination name is too long, return error
+    if (src.len > 8 || dest.len > 8) {
+        struct SyscallPutsArgs args = {
+            .buf = "mv: cannot move: Name is too long! Maximum name length is 8 characters.",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Return error if not enough arguments
+    if (src.len == 0 || dest.len == 0) {
+        struct SyscallPutsArgs args = {
+            .buf = "mv error: Not enough arguments! Usage: mv <source> <destination>",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Check if src exists
+    bool src_is_folder = false;
+    struct FAT32DirectoryTable src_table;
+    struct FAT32DriverRequest src_req = {
+        .buf = &src_table,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = CLUSTER_SIZE
+    };
+
+    for (uint8_t i = 0; i < src.len; i++) {
+        src_req.name[i] = src.buf[i];
+    }
+
+    int8_t retcode_src;
+    syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &src_req, (uint32_t) &retcode_src, 0);
+
+    switch (retcode_src) {
+        case 0:
+            src_is_folder = true;
+            break;
+        case 2:
+            struct SyscallPutsArgs not_found = {
+                .buf = "mv error: Source file/folder not found in current directory!",
+                .count = strlen(not_found.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_found, 0, 0);
+            return;
+        default:
+            break;
+    }
+
+    // Check dest is file or folder
+    struct FAT32DirectoryTable dest_table;
+    struct FAT32DriverRequest dest_req = {
+        .buf = &dest_table,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = CLUSTER_SIZE
+    };
+
+    for (uint8_t i = 0; i < dest.len; i++) {
+        dest_req.name[i] = dest.buf[i];
+    }
+
+    bool is_rename = false;
+    int8_t retcode_dest;
+    syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &dest_req, (uint32_t) &retcode_dest, 0);
+
+    switch (retcode_dest) {
+        case 1:
+            struct SyscallPutsArgs not_folder = {
+                .buf = "mv error: Destination is not a folder!",
+                .count = strlen(not_folder.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_folder, 0, 0);
+            return;
+        case 2:
+            is_rename = true;
+            break;
+        default:
+            break;
+    }
+
+    // Rename or move
+    if (is_rename) {
+        for (uint8_t i = 2; i < 64; i++) {
+            struct FAT32DirectoryEntry* entry = &currentDir.table[i];
+            if (strcmp(entry->name, src.buf) == true) {
+                // Rename entry
+                for (uint8_t j = 0; j < 8; j++) {
+                    entry->name[j] = dest.buf[j];
+                }
+
+                // Write current dir to filesystem
+                syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+
+                // Rename entry in src directory table
+                if (src_is_folder) {
+                    // Get src cluster
+                    uint32_t src_cluster = (src_table.table[0].cluster_high << 16) | (src_table.table[0].cluster_low);
+
+                    // Change name of src table
+                    for (uint8_t j = 0; j < 8; j++) {
+                        src_table.table[0].name[j] = dest.buf[j];
+                    }
+
+                    // Write src table to filesystem
+                    syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &src_table, src_cluster, 0);
+                }
+
+                // Print success prompt
+                struct SyscallPutsArgs success = {
+                    .buf = "mv: File/folder successfully renamed to ",
+                    .count = strlen(success.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &success, 0, 0);
+
+                struct SyscallPutsArgs dest_name = {
+                    .buf = dest.buf,
+                    .count = dest.len,
+                    .fg_color = BIOS_YELLOW,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &dest_name, 0, 0);
+
+                struct SyscallPutsArgs success2 = {
+                    .buf = "!",
+                    .count = strlen(success2.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &success2, 0, 0);
+
+                // Update current directory table
+                syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+                return;
+            }
+        }
+    } else {
+        // Find source
+        struct FAT32DirectoryEntry src_entry;
+        for (uint8_t i = 2; i < 64; i++) {
+            src_entry = currentDir.table[i];
+
+            if (strcmp(src_entry.name, src.buf) == true) {
+                // Create an empty directory entry
+                currentDir.table[i] = (struct FAT32DirectoryEntry) {0};
+                break;
+            }
+        }
+
+        // Write current dir to filesystem
+        syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+
+        // Get destination folder cluster number
+        uint32_t dest_cluster = (dest_table.table[0].cluster_high << 16) | dest_table.table[0].cluster_low;
+
+        // Find destination
+        struct FAT32DirectoryEntry dest_entry;
+        for (uint8_t i = 2; i < 64; i++) {
+            dest_entry = dest_table.table[i];
+
+            if (dest_entry.user_attribute != UATTR_NOT_EMPTY) {
+                // Copy source to destination
+                dest_table.table[i] = src_entry;
+                break;
+            }
+        }
+
+        // Write destination dir to filesystem
+        syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &dest_table, dest_cluster, 0);
+
+        // Change src root if src is a folder
+        if (src_is_folder) {
+            // Get src cluster
+            uint32_t src_cluster = (src_table.table[0].cluster_high << 16) | (src_table.table[0].cluster_low);
+
+            // Change root of src table
+            src_table.table[1].cluster_high = dest_table.table[0].cluster_high;
+            src_table.table[1].cluster_low = dest_table.table[0].cluster_low;
+
+            // Write src table to filesystem
+            syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &src_table, src_cluster, 0);
+        }
+
+        // Print success prompt
+        struct SyscallPutsArgs success = {
+            .buf = "mv: File/folder successfully moved to ",
+            .count = strlen(success.buf),
+            .fg_color = BIOS_LIGHT_GREEN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &success, 0, 0);
+
+        struct SyscallPutsArgs dest_name = {
+            .buf = dest.buf,
+            .count = dest.len,
+            .fg_color = BIOS_YELLOW,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &dest_name, 0, 0);
+
+        struct SyscallPutsArgs success2 = {
+            .buf = "!",
+            .count = strlen(success2.buf),
+            .fg_color = BIOS_LIGHT_GREEN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &success2, 0, 0);
+
+        // Update current directory table
+        syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+    } 
+}
+
+// find
+void find_recursive(struct StringN filename, bool* found) {
+    if (*found == true) return;
+
+    for (uint8_t i = 2; i < 64; i++) {
+        struct FAT32DirectoryEntry entry = currentDir.table[i];
+        
+        // Skip if entry is empty
+        if (entry.user_attribute != UATTR_NOT_EMPTY) continue;
+
+        // If entryname is equal to filename, end search
+        if (strcmp(entry.name, filename.buf) == true) {
+            if (!(*found)) {
+                struct SyscallPutsArgs args = {
+                    .buf = "File/folder found at ",
+                    .count = strlen(args.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+
+                struct StringN path;
+                stringn_create(&path);
+                stringn_appendstr(&path, currentDirPath.buf);
+                stringn_appendstr(&path, entry.name);
+
+                struct SyscallPutsArgs path_struct = {
+                    .buf = path.buf,
+                    .count = path.len,
+                    .fg_color = BIOS_YELLOW,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &path_struct, 0, 0);
+
+                struct SyscallPutsArgs excl = {
+                    .buf = "!",
+                    .count = strlen(excl.buf),
+                    .fg_color = 0x7,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &excl, 0, 0);
+            }
+
+            *found = true;
+            return;
+        }
+
+        // If entry is a folder, recursively find
+        if (entry.attribute == ATTR_SUBDIRECTORY) {
+            // Get folder name
+            struct StringN folder_name;
+            stringn_create(&folder_name);
+            stringn_appendstr(&folder_name, entry.name);
+
+            // Change directory
+            cd(folder_name, CD_NO_PRINT);
+
+            // Recursive find
+            find_recursive(filename, found);
+        }
+    }
+    struct StringN root;
+    stringn_create(&root);
+    stringn_appendstr(&root, "..");
+    cd(root, CD_NO_PRINT);
+}
+
+void find(struct StringN filename) {
+    struct FAT32DirectoryTable old_currentDir = currentDir;
+    struct StringN old_currentDirPath = currentDirPath;
+    uint32_t old_currentDirCluster = currentDirCluster;
+
+    currentDir = rootDir;
+    currentDirPath = rootDirPath;
+    currentDirCluster = rootDirCluster;
+
+    bool found = false;
+    find_recursive(filename, &found);
+
+    currentDir = old_currentDir;
+    currentDirPath = old_currentDirPath;
+    currentDirCluster = old_currentDirCluster;
+
+    if (!found) {
+        struct SyscallPutsArgs not_found = {
+            .buf = "find: File/folder not found in filesystem!",
+            .count = strlen(not_found.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &not_found, 0, 0);
+    
+    }
+}
+
+// exec
+void exec(struct StringN filename) {
+    // Construct FAT32DriverRequest
+    struct FAT32DriverRequest request = {
+        .name = "\0\0\0\0\0\0\0\0",
+        .parent_cluster_number = 5,
+        .buffer_size = 0x100000,
+    };
+
+    // Fill request name
+    for (uint8_t i = 0; i < filename.len; i++) {
+        request.name[i] = filename.buf[i];
+    }
+
+    // Create process
+    int8_t retcode;
+    syscall(SYSCALL_CREATE_PROCESS, (uint32_t) &request, (uint32_t) &retcode, 0);
+
+    // Handle return code
+    switch (retcode) {
+        case 0:
+            struct SyscallPutsArgs args_0 = {
+                .buf = "Process created successfully!",
+                .count = strlen(args_0.buf),
+                .fg_color = BIOS_YELLOW,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_0, 0, 0);
+            break;
+        case 1:
+            struct SyscallPutsArgs args_1 = {
+                .buf = "Exec error: Max process count reached!",
+                .count = strlen(args_1.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_1, 0, 0);
+            break;
+
+        case 2:
+            struct SyscallPutsArgs args_2 = {
+                .buf = "Exec error: Invalid entrypoint!",
+                .count = strlen(args_2.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_2, 0, 0);
+            break;
+
+        case 3:
+            struct SyscallPutsArgs args_3 = {
+                .buf = "Exec error: Not enough memory!",
+                .count = strlen(args_3.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_3, 0, 0);
+            break;
+
+        case 4:
+            struct SyscallPutsArgs args_4 = {
+                .buf = "Exec error: File not found in bin folder!",
+                .count = strlen(args_4.buf),
+                .fg_color = BIOS_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args_4, 0, 0);
+            break;
+    }
+}
+
 // ps
 void ps() {
     // Get max process count
@@ -750,7 +1557,7 @@ void ps() {
 
     // Print header
     struct SyscallPutsArgs header = {
-        .buf = "PID        Name        State        Frame Count",
+        .buf = "PID      Name        State        Frame Count",
         .count = strlen(header.buf),
         .fg_color = BIOS_YELLOW,
         .bg_color = 0x0
@@ -825,4 +1632,17 @@ void ps() {
             syscall(SYSCALL_PUTS, (uint32_t) &frame_count, 0, 0);
         }
     }
+}
+
+void kill(struct StringN pid_string) {
+    if (strcmp(pid_string.buf, "0")) syscall(SYSCALL_KILL_PROCESS, 0, 0, 0);
+    if (strcmp(pid_string.buf, "1")) syscall(SYSCALL_KILL_PROCESS, 1, 0, 0);
+    if (strcmp(pid_string.buf, "2")) syscall(SYSCALL_KILL_PROCESS, 2, 0, 0);
+    if (strcmp(pid_string.buf, "3")) syscall(SYSCALL_KILL_PROCESS, 3, 0, 0);
+    if (strcmp(pid_string.buf, "4")) syscall(SYSCALL_KILL_PROCESS, 4, 0, 0);
+    if (strcmp(pid_string.buf, "5")) syscall(SYSCALL_KILL_PROCESS, 5, 0, 0);
+    if (strcmp(pid_string.buf, "6")) syscall(SYSCALL_KILL_PROCESS, 6, 0, 0);
+    if (strcmp(pid_string.buf, "7")) syscall(SYSCALL_KILL_PROCESS, 7, 0, 0);
+    if (strcmp(pid_string.buf, "8")) syscall(SYSCALL_KILL_PROCESS, 8, 0, 0);
+    if (strcmp(pid_string.buf, "9")) syscall(SYSCALL_KILL_PROCESS, 9, 0, 0);
 }

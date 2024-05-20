@@ -139,6 +139,7 @@ int32_t process_create_user_process(struct FAT32DriverRequest request) {
 
     // Read file from memory
     if (read(request) != 0) {
+        paging_use_page_directory(prev_page_dir);
         retcode = PROCESS_CREATE_FAIL_FS_READ_FAILURE;
         goto exit_cleanup;
     }

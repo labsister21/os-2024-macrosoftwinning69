@@ -12,16 +12,24 @@
 #define SYSCALL_PUTS_AT                 7
 #define SYSCALL_ACTIVATE_KEYBOARD       8
 #define SYSCALL_DEACTIVATE_KEYBOARD     9
-#define SYSCALL_KEYBOARD_PRESS_SHIFT    10
-#define SYSCALL_KEYBOARD_PRESS_CTRL     11
-#define SYSCALL_CLEAR_SCREEN            12
-#define SYSCALL_SET_CURSOR              13
-#define SYSCALL_GET_CURSOR_ROW          14
-#define SYSCALL_GET_CURSOR_COL          15
-#define SYSCALL_READ_CLUSTER            16
-#define SYSCALL_TERMINATE_PROCESS       17
-#define SYSCALL_GET_MAX_PROCESS_COUNT   18
-#define SYSCALL_GET_PROCESS_INFO        19
+#define SYSCALL_GET_KEYBOARD_BORDERS    10
+#define SYSCALL_SET_KEYBOARD_BORDERS    11
+#define SYSCALL_KEYBOARD_PRESS_SHIFT    12
+#define SYSCALL_KEYBOARD_PRESS_CTRL     13
+#define SYSCALL_CLEAR_SCREEN            14
+#define SYSCALL_SET_CURSOR              15
+#define SYSCALL_GET_CURSOR_ROW          16
+#define SYSCALL_GET_CURSOR_COL          17
+#define SYSCALL_READ_CLUSTER            18
+#define SYSCALL_TERMINATE_PROCESS       19
+#define SYSCALL_CREATE_PROCESS          20
+#define SYSCALL_GET_MAX_PROCESS_COUNT   21
+#define SYSCALL_GET_PROCESS_INFO        22
+#define SYSCALL_GET_CLOCK_TIME          23
+#define SYSCALL_GET_IS_SHELL_OPEN       24
+#define SYSCALL_SET_IS_SHELL_OPEN       25
+#define SYSCALL_WRITE_CLUSTER           26
+#define SYSCALL_KILL_PROCESS            27
 
 // BIOS colors
 #define BIOS_BLACK                     0x0
@@ -65,6 +73,13 @@ struct SyscallPutsAtArgs {
     uint8_t col;
 };
 
+struct SyscallKeyboardBordersArgs {
+    uint8_t up;
+    uint8_t down;
+    uint8_t left;
+    uint8_t right;
+};
+
 struct SyscallProcessInfoArgs {
     // Metadata
     uint32_t pid;
@@ -76,6 +91,16 @@ struct SyscallProcessInfoArgs {
 
     // Memory
     uint32_t page_frame_used_count;
+};
+
+struct SyscallClockTimeArgs {
+    unsigned char hour;
+    unsigned char minute;
+    unsigned char second;
+
+    unsigned char day;
+    unsigned char month;
+    unsigned char year;
 };
 
 #endif

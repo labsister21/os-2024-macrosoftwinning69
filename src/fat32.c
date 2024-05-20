@@ -336,7 +336,7 @@ int8_t delete(struct FAT32DriverRequest request) {
     memset(&dir_table, 0, CLUSTER_SIZE);
     read_clusters(&dir_table, request.parent_cluster_number, 1);
 
-    for (uint8_t i = 0; i < 64; i++) {
+    for (uint8_t i = 2; i < 64; i++) {
         struct FAT32DirectoryEntry dir_entry = dir_table.table[i];
 
         if (!memcmp(&dir_entry.name, &request.name, 8) && !memcmp(&dir_entry.ext, &request.ext, 3)) {

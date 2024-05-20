@@ -56,7 +56,6 @@ void keyboard_isr(void){
         // Process extended scancodes
         if (scancode == EXTENDED_SCANCODE_BYTE) {
             keyboard_state.read_extended_mode = true;
-            return;
         } else if (keyboard_state.read_extended_mode) {
             if (scancode == EXT_SCANCODE_UP) keyboard_state.keyboard_buffer_ext = EXT_BUFFER_UP;
             else if (scancode == EXT_SCANCODE_DOWN) keyboard_state.keyboard_buffer_ext = EXT_BUFFER_DOWN;

@@ -5,6 +5,6 @@ section .text
 _start:
     call main
     mov ebx, eax
-    mov eax, 17
+    mov eax, 18
     int 0x30
     ;jmp  $
