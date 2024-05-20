@@ -63,7 +63,7 @@ void kernel_setup(void) {
     // Allocate first 4 MiB virtual memory
     paging_allocate_user_page_frame(&_paging_kernel_page_directory, (uint8_t*) 0);
 
-    // // Write bin folder
+    // Write bin folder
     // struct FAT32DriverRequest bin = {
     //     .name = "bin",
     //     .ext = "\0\0\0",

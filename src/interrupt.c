@@ -577,6 +577,12 @@ void syscall(struct InterruptFrame frame) {
             user_variables.shell_open = (bool) frame.cpu.general.ebx;
             break;
 
+        // SYSCALL 26
+        case SYSCALL_WRITE_CLUSTER:
+        ;
+            write_clusters((struct ClusterBuffer*) frame.cpu.general.ebx, frame.cpu.general.ecx, 1);
+            break;
+
         // SYSCALL 30
         case SYSCALL_FIND_FILE:
         ;

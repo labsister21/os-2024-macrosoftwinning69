@@ -42,6 +42,9 @@ uint32_t currentDirCluster;
 #define SHELL_EXEC "exec"
 #define SHELL_PS "ps"
 
+// Variable for storing cp destination cluster
+uint32_t cp_dest_cluster;
+
 // Shell commands definitions
 void cd(struct StringN folder);
 void ls();
@@ -49,6 +52,7 @@ void mkdir(struct StringN folder_Name);
 void rm(struct StringN folder);
 void cat(struct StringN filename);
 void cp(struct StringN src, struct StringN dest);
+void mv(struct StringN src, struct StringN dest);
 
 // void find(struct StringN filename);
 
@@ -264,13 +268,14 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_CAT)) {
         cat(arg1);
     } else if (strcmp(command, SHELL_CP)) {
+        cp_dest_cluster = currentDirCluster;
         cp(arg1, arg2);
     } else if (strcmp(command, SHELL_RM)) {
         rm(arg1);
     } else if (strcmp(command, SHELL_MV)) {
-
+        mv(arg1, arg2);
     } else if (strcmp(command, SHELL_FIND)) {
-        // find(arg1);
+        // find(arg1, arg2);
     } else if (strcmp(command, SHELL_CLEAR)) {
         syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
         syscall(SYSCALL_SET_CURSOR, SHELL_WINDOW_UPPER_HEIGHT, SHELL_WINDOW_LEFT_WIDTH, 0);
@@ -962,7 +967,19 @@ void cp(struct StringN src, struct StringN dest) {
         struct SyscallPutsArgs args = {
             .buf = "cp: cannot copy: Name is too long! Maximum name length is 8 characters.",
             .count = strlen(args.buf),
-            .fg_color = BIOS_RED,
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Return error if not enough arguments
+    if (src.len == 0 || dest.len == 0) {
+        struct SyscallPutsArgs args = {
+            .buf = "cp error: Not enough arguments! Usage: cp <source> <destination>",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_RED,
             .bg_color = 0x0
         };
         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
@@ -1047,6 +1064,7 @@ void cp(struct StringN src, struct StringN dest) {
     }
 
     // Write file
+    src_req.parent_cluster_number = cp_dest_cluster;
     syscall(SYSCALL_WRITE, (uint32_t) &src_req, (uint32_t) &retcode, 0);
 
     // Return error if file already exists
@@ -1065,6 +1083,7 @@ void cp(struct StringN src, struct StringN dest) {
     syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
 
     // Print success message
+    if (cp_dest_cluster != currentDirCluster) return;
     struct SyscallPutsArgs success = {
         .buf = "cp: File successfully copied to ",
         .count = strlen(success.buf),
@@ -1088,6 +1107,240 @@ void cp(struct StringN src, struct StringN dest) {
         .bg_color = 0x0
     };
     syscall(SYSCALL_PUTS, (uint32_t) &success2, 0, 0);
+}
+
+// to not found --> rename
+// to folder --> move
+// to file --> error
+
+// mv
+void mv(struct StringN src, struct StringN dest) {
+    // If source or destination name is too long, return error
+    if (src.len > 8 || dest.len > 8) {
+        struct SyscallPutsArgs args = {
+            .buf = "mv: cannot move: Name is too long! Maximum name length is 8 characters.",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Return error if not enough arguments
+    if (src.len == 0 || dest.len == 0) {
+        struct SyscallPutsArgs args = {
+            .buf = "mv error: Not enough arguments! Usage: mv <source> <destination>",
+            .count = strlen(args.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        return;
+    }
+
+    // Check if src exists
+    bool src_is_folder = false;
+    struct FAT32DirectoryTable src_table;
+    struct FAT32DriverRequest src_req = {
+        .buf = &src_table,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = CLUSTER_SIZE
+    };
+
+    for (uint8_t i = 0; i < src.len; i++) {
+        src_req.name[i] = src.buf[i];
+    }
+
+    int8_t retcode_src;
+    syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &src_req, (uint32_t) &retcode_src, 0);
+
+    switch (retcode_src) {
+        case 0:
+            src_is_folder = true;
+            break;
+        case 2:
+            struct SyscallPutsArgs not_found = {
+                .buf = "mv error: Source file/folder not found in current directory!",
+                .count = strlen(not_found.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_found, 0, 0);
+            return;
+        default:
+            break;
+    }
+
+    // Check dest is file or folder
+    struct FAT32DirectoryTable dest_table;
+    struct FAT32DriverRequest dest_req = {
+        .buf = &dest_table,
+        .name = "\0\0\0\0\0\0\0\0",
+        .ext = "\0\0\0",
+        .parent_cluster_number = currentDirCluster,
+        .buffer_size = CLUSTER_SIZE
+    };
+
+    for (uint8_t i = 0; i < dest.len; i++) {
+        dest_req.name[i] = dest.buf[i];
+    }
+
+    bool is_rename = false;
+    int8_t retcode_dest;
+    syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &dest_req, (uint32_t) &retcode_dest, 0);
+
+    switch (retcode_dest) {
+        case 1:
+            struct SyscallPutsArgs not_folder = {
+                .buf = "mv error: Destination is not a folder!",
+                .count = strlen(not_folder.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &not_folder, 0, 0);
+            return;
+        case 2:
+            is_rename = true;
+            break;
+        default:
+            break;
+    }
+
+    // Rename or move
+    if (is_rename) {
+        for (uint8_t i = 2; i < 64; i++) {
+            struct FAT32DirectoryEntry* entry = &currentDir.table[i];
+            if (strcmp(entry->name, src.buf) == true) {
+                // Rename entry
+                for (uint8_t j = 0; j < 8; j++) {
+                    entry->name[j] = dest.buf[j];
+                }
+
+                // Write current dir to filesystem
+                syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+
+                // Rename entry in src directory table
+                if (src_is_folder) {
+                    // Get src cluster
+                    uint32_t src_cluster = (src_table.table[0].cluster_high << 16) | (src_table.table[0].cluster_low);
+
+                    // Change name of src table
+                    for (uint8_t j = 0; j < 8; j++) {
+                        src_table.table[0].name[j] = dest.buf[j];
+                    }
+
+                    // Write src table to filesystem
+                    syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &src_table, src_cluster, 0);
+                }
+
+                // Print success prompt
+                struct SyscallPutsArgs success = {
+                    .buf = "mv: File/folder successfully renamed to ",
+                    .count = strlen(success.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &success, 0, 0);
+
+                struct SyscallPutsArgs dest_name = {
+                    .buf = dest.buf,
+                    .count = dest.len,
+                    .fg_color = BIOS_YELLOW,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &dest_name, 0, 0);
+
+                struct SyscallPutsArgs success2 = {
+                    .buf = "!",
+                    .count = strlen(success2.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &success2, 0, 0);
+
+                // Update current directory table
+                syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+                return;
+            }
+        }
+    } else {
+        // Find source
+        struct FAT32DirectoryEntry src_entry;
+        for (uint8_t i = 2; i < 64; i++) {
+            src_entry = currentDir.table[i];
+
+            if (strcmp(src_entry.name, src.buf) == true) {
+                // Create an empty directory entry
+                currentDir.table[i] = (struct FAT32DirectoryEntry) {0};
+                break;
+            }
+        }
+
+        // Write current dir to filesystem
+        syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+
+        // Get destination folder cluster number
+        uint32_t dest_cluster = (dest_table.table[0].cluster_high << 16) | dest_table.table[0].cluster_low;
+
+        // Find destination
+        struct FAT32DirectoryEntry dest_entry;
+        for (uint8_t i = 2; i < 64; i++) {
+            dest_entry = dest_table.table[i];
+
+            if (dest_entry.user_attribute != UATTR_NOT_EMPTY) {
+                // Copy source to destination
+                dest_table.table[i] = src_entry;
+                break;
+            }
+        }
+
+        // Write destination dir to filesystem
+        syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &dest_table, dest_cluster, 0);
+
+        // Change src root if src is a folder
+        if (src_is_folder) {
+            // Get src cluster
+            uint32_t src_cluster = (src_table.table[0].cluster_high << 16) | (src_table.table[0].cluster_low);
+
+            // Change root of src table
+            src_table.table[1].cluster_high = dest_table.table[0].cluster_high;
+            src_table.table[1].cluster_low = dest_table.table[0].cluster_low;
+
+            // Write src table to filesystem
+            syscall(SYSCALL_WRITE_CLUSTER, (uint32_t) &src_table, src_cluster, 0);
+        }
+
+        // Print success prompt
+        struct SyscallPutsArgs success = {
+            .buf = "mv: File/folder successfully moved to ",
+            .count = strlen(success.buf),
+            .fg_color = BIOS_LIGHT_GREEN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &success, 0, 0);
+
+        struct SyscallPutsArgs dest_name = {
+            .buf = dest.buf,
+            .count = dest.len,
+            .fg_color = BIOS_YELLOW,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &dest_name, 0, 0);
+
+        struct SyscallPutsArgs success2 = {
+            .buf = "!",
+            .count = strlen(success2.buf),
+            .fg_color = BIOS_LIGHT_GREEN,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &success2, 0, 0);
+
+        // Update current directory table
+        syscall(SYSCALL_READ_CLUSTER, (uint32_t) &currentDir, currentDirCluster, 0);
+    } 
 }
 
 // Find

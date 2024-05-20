@@ -28,6 +28,7 @@
 #define SYSCALL_GET_CLOCK_TIME          23
 #define SYSCALL_GET_IS_SHELL_OPEN       24
 #define SYSCALL_SET_IS_SHELL_OPEN       25
+#define SYSCALL_WRITE_CLUSTER           26
 #define SYSCALL_FIND_FILE               30
 
 // BIOS colors
