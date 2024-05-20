@@ -14,6 +14,10 @@ char* itoa[] = {
 };
 
 // Filesystem variables
+struct FAT32DirectoryTable rootDir;
+struct StringN rootDirPath;
+uint32_t rootDirCluster;
+
 struct FAT32DirectoryTable currentDir;
 struct StringN currentDirPath;
 uint32_t currentDirCluster;
@@ -45,16 +49,19 @@ uint32_t currentDirCluster;
 // Variable for storing cp destination cluster
 uint32_t cp_dest_cluster;
 
+// Noprint for cd
+#define CD_NO_PRINT 0
+#define CD_PRINT    1
+
 // Shell commands definitions
-void cd(struct StringN folder);
+void cd(struct StringN folder, uint8_t print);
 void ls();
 void mkdir(struct StringN folder_Name);
 void rm(struct StringN folder);
 void cat(struct StringN filename);
 void cp(struct StringN src, struct StringN dest);
 void mv(struct StringN src, struct StringN dest);
-
-// void find(struct StringN filename);
+void find(struct StringN filename);
 
 // Shell process commands definitions
 void exec(struct StringN filename);
@@ -260,7 +267,7 @@ void shell_input_handler(struct StringN input) {
     char* command = arg0.buf;
 
     if (strcmp(command, SHELL_CD)) {
-        cd(arg1);
+        cd(arg1, CD_PRINT);
     } else if (strcmp(command, SHELL_LS)) {
         ls();
     } else if (strcmp(command, SHELL_MKDIR)) {
@@ -275,7 +282,7 @@ void shell_input_handler(struct StringN input) {
     } else if (strcmp(command, SHELL_MV)) {
         mv(arg1, arg2);
     } else if (strcmp(command, SHELL_FIND)) {
-        // find(arg1, arg2);
+        find(arg1);
     } else if (strcmp(command, SHELL_CLEAR)) {
         syscall(SYSCALL_CLEAR_SCREEN, 0, 0, 0);
         syscall(SYSCALL_SET_CURSOR, SHELL_WINDOW_UPPER_HEIGHT, SHELL_WINDOW_LEFT_WIDTH, 0);
@@ -331,6 +338,10 @@ int main(void) {
     syscall(SYSCALL_READ_DIRECTORY, (uint32_t) &request, (uint32_t) 0, 0);
     set_current_cluster();
     create_path();
+
+    rootDir = currentDir;
+    rootDirPath = currentDirPath;
+    rootDirCluster = currentDirCluster;
 
     // Behavior variables
     char buf;
@@ -510,7 +521,7 @@ int main(void) {
 
 // Shell command implementation
 // cd
-void cd(struct StringN folder) {        
+void cd(struct StringN folder, uint8_t print) {        
     bool isCwd = strcmp(folder.buf, ".");
     bool isRoot = strcmp(folder.buf, "..");
     if (isCwd || isRoot) {
@@ -524,30 +535,32 @@ void cd(struct StringN folder) {
             create_path();
         }
 
-        // Print finishing prompt
-        struct SyscallPutsArgs args = {
-            .buf = "Current directory successfully changed to ",
-            .count = strlen(args.buf),
-            .fg_color = BIOS_LIGHT_GREEN,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        if (print == CD_PRINT) {
+            // Print finishing prompt
+            struct SyscallPutsArgs args = {
+                .buf = "Current directory successfully changed to ",
+                .count = strlen(args.buf),
+                .fg_color = BIOS_LIGHT_GREEN,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
 
-        struct SyscallPutsArgs args2 = {
-            .buf = currentDir.table[0].name,
-            .count = strlen(args2.buf),
-            .fg_color = BIOS_YELLOW,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+            struct SyscallPutsArgs args2 = {
+                .buf = currentDir.table[0].name,
+                .count = strlen(args2.buf),
+                .fg_color = BIOS_YELLOW,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
 
-        struct SyscallPutsArgs args3 = {
-            .buf = "!",
-            .count = strlen(args3.buf),
-            .fg_color = BIOS_LIGHT_GREEN,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
+            struct SyscallPutsArgs args3 = {
+                .buf = "!",
+                .count = strlen(args3.buf),
+                .fg_color = BIOS_LIGHT_GREEN,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
+        }
         return;
     } else {
         struct FAT32DirectoryTable table = currentDir;
@@ -593,41 +606,45 @@ void cd(struct StringN folder) {
                 set_current_cluster();
                 create_path();
 
-                // Print finishing prompt
-                struct SyscallPutsArgs args = {
-                    .buf = "Current directory successfully changed to ",
-                    .count = strlen(args.buf),
-                    .fg_color = BIOS_LIGHT_GREEN,
-                    .bg_color = 0x0
-                };
-                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+                if (print == CD_PRINT) {                    
+                    // Print finishing prompt
+                    struct SyscallPutsArgs args = {
+                        .buf = "Current directory successfully changed to ",
+                        .count = strlen(args.buf),
+                        .fg_color = BIOS_LIGHT_GREEN,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
 
-                struct SyscallPutsArgs args2 = {
-                    .buf = request.buf,
-                    .count = strlen(args2.buf),
-                    .fg_color = BIOS_YELLOW,
-                    .bg_color = 0x0
-                };
-                syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
+                    struct SyscallPutsArgs args2 = {
+                        .buf = request.buf,
+                        .count = strlen(args2.buf),
+                        .fg_color = BIOS_YELLOW,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args2, 0, 0);
 
-                struct SyscallPutsArgs args3 = {
-                    .buf = "!",
-                    .count = strlen(args3.buf),
-                    .fg_color = BIOS_LIGHT_GREEN,
-                    .bg_color = 0x0
-                };
-                syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
+                    struct SyscallPutsArgs args3 = {
+                        .buf = "!",
+                        .count = strlen(args3.buf),
+                        .fg_color = BIOS_LIGHT_GREEN,
+                        .bg_color = 0x0
+                    };
+                    syscall(SYSCALL_PUTS, (uint32_t) &args3, 0, 0);
+                }
                 return;
             }
         }
 
-        struct SyscallPutsArgs args = {
-            .buf = "cd error: Directory not found!",
-            .count = strlen(args.buf),
-            .fg_color = BIOS_LIGHT_RED,
-            .bg_color = 0x0
-        };
-        syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        if (print == CD_PRINT) {
+            struct SyscallPutsArgs args = {
+                .buf = "cd error: Directory not found!",
+                .count = strlen(args.buf),
+                .fg_color = BIOS_LIGHT_RED,
+                .bg_color = 0x0
+            };
+            syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
+        }
     }
 }
 
@@ -1343,106 +1360,100 @@ void mv(struct StringN src, struct StringN dest) {
     } 
 }
 
-// Find
-// void find_recursive(struct FAT32DirectoryTable dir_table, struct StringN name, struct StringN path, bool found) {
-//     for (uint8_t i = 2; i < 64; i++) {
-//         struct FAT32DirectoryEntry entry = dir_table.table[i];
+// find
+void find_recursive(struct StringN filename, bool* found) {
+    if (*found == true) return;
+
+    for (uint8_t i = 2; i < 64; i++) {
+        struct FAT32DirectoryEntry entry = currentDir.table[i];
         
-//         // Skip if entry is empty
-//         if (entry.user_attribute == UATTR_EMPTY) continue;
+        // Skip if entry is empty
+        if (entry.user_attribute != UATTR_NOT_EMPTY) continue;
 
-//         // Skip if entry name is not equal
-//         if (strcmp(entry.name, name.buf) == false) continue;
+        // If entryname is equal to filename, end search
+        if (strcmp(entry.name, filename.buf) == true) {
+            if (!(*found)) {
+                struct SyscallPutsArgs args = {
+                    .buf = "File/folder found at ",
+                    .count = strlen(args.buf),
+                    .fg_color = BIOS_LIGHT_GREEN,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
 
-        
-//         struct StringN new_path;
-//         stringn_create(&new_path);
-//         stringn_appendstr(&new_path, entry.name);
-//     }
-// }
+                struct StringN path;
+                stringn_create(&path);
+                stringn_appendstr(&path, currentDirPath.buf);
+                stringn_appendstr(&path, entry.name);
 
-// void find(struct StringN filename) {
-//     struct StringN path;
-//     stringn_create(&path);
+                struct SyscallPutsArgs path_struct = {
+                    .buf = path.buf,
+                    .count = path.len,
+                    .fg_color = BIOS_YELLOW,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &path_struct, 0, 0);
 
-//     stringn_appendstr(&path, "./");
+                struct SyscallPutsArgs excl = {
+                    .buf = "!",
+                    .count = strlen(excl.buf),
+                    .fg_color = 0x7,
+                    .bg_color = 0x0
+                };
+                syscall(SYSCALL_PUTS, (uint32_t) &excl, 0, 0);
+            }
 
-//     bool found = false;
-//     find_recursive(currentDir, filename, path, &found);
-// }
+            *found = true;
+            return;
+        }
 
-// void find(struct StringN filename){
-//     struct FAT32DriverRequest request = {
-//         .name = "\0\0\0\0\0\0\0\0",
-//         .parent_cluster_number = currentDirCluster,
-//         .buffer_size = 0,
-//     };
-//     struct SyscallPutsArgs args = {
-//         .buf = "Directory ",
-//         .count = strlen(args.buf),
-//         .fg_color = 0xC,
-//         .bg_color = 0x0
-//     };
-//     if(strlen(filename.buf) > 8){
-//         args.buf = "find: cannot find : name is too long! (Maximum 8 Characters)";
-//         args.count = strlen(args.buf);
-//         args.fg_color = 0xC;
-//         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//         args.buf = filename.buf;
-//         args.count = strlen(args.buf);
-//         args.fg_color = 0xC;
-//         syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//     }
-//     else{
-//         for (uint8_t i = 0; i < strlen(filename.buf); i++) {
-//             request.name[i] = filename.buf[i];
-//         }
-//         int8_t retcode;
-//         syscall(SYSCALL_FIND_FILE,(uint32_t) &request, (uint32_t) &retcode, 0);
-//         switch (retcode){
-//             case 0:
-//                 args.buf = "Operation success! ";
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xE;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 args.buf = "'";
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xE;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 // args.buf = filename.buf;
-//                 // args.count = strlen(args.buf);
-//                 // args.fg_color = 0xE;
-//                 // syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 args.buf = "'";
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xE;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 args.buf = "has been found on:";
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xE;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 args.buf = request.buf;
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xE;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 break;
-//             case 1:
-//                 args.buf = "find: cannot find '";
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xC;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 args.buf = filename.buf;
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xC;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 args.buf = "': No such file or directory";
-//                 args.count = strlen(args.buf);
-//                 args.fg_color = 0xC;
-//                 syscall(SYSCALL_PUTS, (uint32_t) &args, 0, 0);
-//                 break;
-//         }
-//     }
-// }
+        // If entry is a folder, recursively find
+        if (entry.attribute == ATTR_SUBDIRECTORY) {
+            // Get folder name
+            struct StringN folder_name;
+            stringn_create(&folder_name);
+            stringn_appendstr(&folder_name, entry.name);
+
+            // Change directory
+            cd(folder_name, CD_NO_PRINT);
+
+            // Recursive find
+            find_recursive(filename, found);
+        }
+    }
+    struct StringN root;
+    stringn_create(&root);
+    stringn_appendstr(&root, "..");
+    cd(root, CD_NO_PRINT);
+}
+
+void find(struct StringN filename) {
+    struct FAT32DirectoryTable old_currentDir = currentDir;
+    struct StringN old_currentDirPath = currentDirPath;
+    uint32_t old_currentDirCluster = currentDirCluster;
+
+    currentDir = rootDir;
+    currentDirPath = rootDirPath;
+    currentDirCluster = rootDirCluster;
+
+    bool found = false;
+    find_recursive(filename, &found);
+
+    currentDir = old_currentDir;
+    currentDirPath = old_currentDirPath;
+    currentDirCluster = old_currentDirCluster;
+
+    if (!found) {
+        struct SyscallPutsArgs not_found = {
+            .buf = "find: File/folder not found in filesystem!",
+            .count = strlen(not_found.buf),
+            .fg_color = BIOS_LIGHT_RED,
+            .bg_color = 0x0
+        };
+        syscall(SYSCALL_PUTS, (uint32_t) &not_found, 0, 0);
+    
+    }
+}
 
 // exec
 void exec(struct StringN filename) {
