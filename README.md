@@ -142,7 +142,116 @@ Milestone **_0x3_**:
 
 ## Struktur File
 ```bash
-
+.
+├── OS-S-nya-Stresss.gif
+├── OS.gif
+├── README.md
+├── bin
+│   ├── OS2024.iso
+│   ├── context-switch.o
+│   ├── disk.o
+│   ├── fat32.o
+│   ├── framebuffer.o
+│   ├── gdt.o
+│   ├── idt.o
+│   ├── inserter
+│   ├── interrupt.o
+│   ├── intsetup.o
+│   ├── iso
+│   │   └── boot
+│   │       ├── grub
+│   │       │   ├── grub1
+│   │       │   └── menu.lst
+│   │       └── kernel
+│   ├── kernel
+│   ├── kernel-entrypoint.o
+│   ├── kernel.o
+│   ├── keyboard.o
+│   ├── math.o
+│   ├── paging.o
+│   ├── portio.o
+│   ├── process.o
+│   ├── sample-image-copy-fixedcluster.bin
+│   ├── sample-image-copy.bin
+│   ├── sample-image.bin
+│   ├── scheduler.o
+│   ├── shell
+│   ├── shell_elf
+│   ├── storage.bin
+│   └── string.o
+├── boot
+│   └── kernel
+├── ch1
+│   └── 1 - Framebuffer
+├── lolichan_anime_1.jpg
+├── lolichan_anime_2.jpg
+├── lolichan_anime_3.jpg
+├── makefile
+├── other
+│   └── grub1
+└── src
+    ├── cmos.c
+    ├── context-switch.s
+    ├── disk.c
+    ├── fat32.c
+    ├── framebuffer.c
+    ├── gdt.c
+    ├── header
+    │   ├── background.h
+    │   ├── clock
+    │   │   └── cmos.h
+    │   ├── cpu
+    │   │   ├── gdt.h
+    │   │   └── portio.h
+    │   ├── driver
+    │   │   └── keyboard.h
+    │   ├── filesystem
+    │   │   ├── disk.h
+    │   │   └── fat32.h
+    │   ├── interrupt
+    │   │   ├── idt.h
+    │   │   └── interrupt.h
+    │   ├── kernel-entrypoint.h
+    │   ├── math
+    │   │   └── math.h
+    │   ├── memory
+    │   │   └── paging.h
+    │   ├── process
+    │   │   └── process.h
+    │   ├── scheduler
+    │   │   └── scheduler.h
+    │   ├── stdlib
+    │   │   └── string.h
+    │   ├── temp-context.h
+    │   └── text
+    │       └── framebuffer.h
+    ├── idt.c
+    ├── interrupt.c
+    ├── intsetup.s
+    ├── kernel-entrypoint.s
+    ├── kernel.c
+    ├── keyboard.c
+    ├── linker.ld
+    ├── math.c
+    ├── menu.lst
+    ├── paging.c
+    ├── portio.c
+    ├── process.c
+    ├── scheduler.c
+    ├── string.c
+    └── user-program
+        ├── SYSCALL_LIBRARY.h
+        ├── clock
+        │   ├── clock-linker.ld
+        │   └── clock.c
+        ├── crt0.s
+        ├── external-inserter.c
+        ├── shell
+        │   ├── shell-background.h
+        │   ├── user-linker.ld
+        │   └── user-shell.c
+        ├── string.c
+        └── utils.h
  ```
 
 ## Requirements
