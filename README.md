@@ -266,7 +266,9 @@ Milestone **_0x3_**:
 ## Cara Menjalankan Program
  1. Clone repository Github [ini](repository-link).
  2. Install semua requirements yang diperlukan dengan mengeksekusi `sudo apt update` dan `sudo apt install -y nasm gcc qemu-system-x86 make genisoimage gdb` pada command prompt wsl.
- 4. Jalankan program dengan mengeksekusi `make run` di terminal wsl pada root directory repository ini.
+ 3. Jalankan `make disk` untuk membuat filesystem.
+ 4. Jalankan `make insert-shell` untuk melakukan compile aplikasi shell dan clock.
+ 5. Jalankan program dengan mengeksekusi `make run` di terminal wsl pada root directory repository ini.
 
 
 ## Acknowledgements
