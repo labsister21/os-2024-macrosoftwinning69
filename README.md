@@ -11,7 +11,7 @@
 <img src="OS.gif" width="500" alt="Operating System Anjay">
 
 <p>Operating System Ahanjay</p>
-<div>
+</div>
 
 ## Anggota Kelompok
 <table>
@@ -167,7 +167,7 @@ Milestone **_0x3_**:
 <img src="OS-S-nya-Stresss.gif" width="400" alt="OS (S nya Stress)">
 
 <p>Cheers dulu kali udah namatin Tugas Operating Stress.</p>
-<div>
+</div>
 
 <div align="center">
 <img src="lolichan_anime_1.jpg" width="300" alt="OS (S nya Stress)">
@@ -175,4 +175,4 @@ Milestone **_0x3_**:
 <img src="lolichan_anime_3.jpg" width="300" alt="OS (S nya Stress)">
 
 <p>Biar seneng ditemenin dulu sama lolichan🌼.</p>
-<div>
+</div>
